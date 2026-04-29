@@ -1,17 +1,17 @@
 import { Icon } from './Icon.jsx';
-import platedSpreadUrl from '../assets/IMG_1415.jpeg';
-import venueTableUrl from '../assets/IMG_0232.jpeg';
-import prepBowlsUrl from '../assets/IMG_3653.jpeg';
-import kitchenCrewUrl from '../assets/IMG_3682.jpeg';
-import eventRoomUrl from '../assets/IMG_1313.jpeg';
-import pastryPlatesUrl from '../assets/IMG_0561.jpeg';
-import dinnerTableUrl from '../assets/IMG_7325.jpeg';
-import portraitDishUrl from '../assets/IMG_5542.jpeg';
-import portraitPrepUrl from '../assets/IMG_5190.jpeg';
-import earlyKitchenUrl from '../assets/154316603_128326595865464_1268109346495848041_n.jpg';
-import tableMomentUrl from '../assets/IMG_0475.jpeg';
-import holidayPrepUrl from '../assets/IMG_4605.jpeg';
-import portraitServiceUrl from '../assets/IMG_3026.jpeg';
+import platedSpreadUrl from '../assets/IMG_1415.webp';
+import venueTableUrl from '../assets/IMG_0232.webp';
+import prepBowlsUrl from '../assets/IMG_3653.webp';
+import kitchenCrewUrl from '../assets/IMG_3682.webp';
+import eventRoomUrl from '../assets/IMG_1313.webp';
+import pastryPlatesUrl from '../assets/IMG_0561.webp';
+import dinnerTableUrl from '../assets/IMG_7325.webp';
+import portraitDishUrl from '../assets/IMG_5542.webp';
+import portraitPrepUrl from '../assets/IMG_5190.webp';
+import earlyKitchenUrl from '../assets/154316603_128326595865464_1268109346495848041_n.webp';
+import tableMomentUrl from '../assets/IMG_0475.webp';
+import holidayPrepUrl from '../assets/IMG_4605.webp';
+import portraitServiceUrl from '../assets/IMG_3026.webp';
 
 const values = [
   {

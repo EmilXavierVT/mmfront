@@ -1,6 +1,6 @@
 import { Booking } from './Booking.jsx';
 import { Icon } from './Icon.jsx';
-import cleaningHeroUrl from '../assets/cleaning-hero.jpg';
+import cleaningHeroUrl from '../assets/cleaning-hero.webp';
 
 const services = [
   {

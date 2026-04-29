@@ -5,3 +5,7 @@ dist
 .DS_Store
 npm-debug.log*
 Dockerfile
+docker-compose.yml
+src/assets/*.jpg
+src/assets/*.jpeg
+src/assets/*.JPG

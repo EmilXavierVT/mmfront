@@ -1,12 +1,12 @@
 import { Icon } from './Icon.jsx';
-import heroCoverUrl from '../assets/hero-cover.jpg';
-import cateringHeroUrl from '../assets/catering-hero.jpg';
-import cleaningHeroUrl from '../assets/cleaning-hero.jpg';
+import heroCoverUrl from '../assets/hero-cover.webp';
+import cateringHeroUrl from '../assets/catering-hero.webp';
+import cleaningHeroUrl from '../assets/cleaning-hero.webp';
 
 const HERO_IMAGES = {
-  'hero-cover.jpg': heroCoverUrl,
-  'catering-hero.jpg': cateringHeroUrl,
-  'cleaning-hero.jpg': cleaningHeroUrl,
+  'hero-cover.webp': heroCoverUrl,
+  'catering-hero.webp': cateringHeroUrl,
+  'cleaning-hero.webp': cleaningHeroUrl,
 };
 
 export function Hero({ tweaks, onBook }) {

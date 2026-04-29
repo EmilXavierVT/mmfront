@@ -96,10 +96,17 @@ export default function App() {
   };
   const clearCart = () => setCart({});
 
+  const navigateTo = (page) => {
+    setActive(page);
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
   const handleLogout = () => {
     logout();
     setUser(null);
-    setActive('home');
+    navigateTo('home');
     setToast('Logged out');
     setTimeout(()=>setToast(null), 1800);
   };
@@ -116,7 +123,7 @@ export default function App() {
     <>
       <Topbar
         active={active}
-        onNav={setActive}
+        onNav={navigateTo}
         cartCount={cartCount}
         user={user}
         onAccount={() => setAuthOpen(true)}
@@ -174,7 +181,7 @@ export default function App() {
           <BigCTA onBook={()=>scrollToBook()}/>
         </div>
       )}
-      <Footer onNav={setActive}/>
+      <Footer onNav={navigateTo}/>
       <TweaksUI tweaks={tweaks} setTweak={setTweak}/>
       {authOpen && (
         <AuthModal

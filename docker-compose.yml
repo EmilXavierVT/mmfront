@@ -1,0 +1,8 @@
+services:
+  mmfront:
+    image: ${DOCKER_IMAGE:-your-dockerhub-username/mmfront:latest}
+    container_name: mmfront
+    pull_policy: always
+    ports:
+      - "${APP_PORT:-8080}:80"
+    restart: unless-stopped

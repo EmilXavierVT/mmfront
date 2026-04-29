@@ -17,9 +17,9 @@ export function TweaksUI({ tweaks, setTweak }) {
           {value:'punchy', label:'Punchy'},
         ]} onChange={v=>setTweak('heroVariant', v)} />
         <TweakSelect label="Hero image" value={tweaks.heroImage} options={[
-          {value:'hero-cover.jpg', label:'Plated dish'},
-          {value:'catering-hero.jpg', label:'Catering scene'},
-          {value:'cleaning-hero.jpg', label:'Clean home'},
+          {value:'hero-cover.webp', label:'Plated dish'},
+          {value:'catering-hero.webp', label:'Catering scene'},
+          {value:'cleaning-hero.webp', label:'Clean home'},
         ]} onChange={v=>setTweak('heroImage', v)} />
       </TweakSection>
       <TweakSection label="Color accents">

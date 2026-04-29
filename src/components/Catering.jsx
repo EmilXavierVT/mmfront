@@ -1,15 +1,15 @@
 import { Icon } from './Icon.jsx';
 import { Booking } from './Booking.jsx';
 import { Menu } from './Menu.jsx';
-import prepBowlsUrl from '../assets/IMG_3653.jpeg';
-import eventRoomUrl from '../assets/IMG_1313.jpeg';
-import kitchenCrewUrl from '../assets/IMG_3682.jpeg';
-import pastryPlatesUrl from '../assets/IMG_0561.jpeg';
-import sildHeroUrl from '../assets/SILD_20311.jpg';
-import sildTomatoUrl from '../assets/SILD_20465.jpg';
-import sildWholeUrl from '../assets/SILD_20277.jpg';
-import sildAsparagusUrl from '../assets/SILD_20496.jpg';
-import sildBreadUrl from '../assets/SILD_20420.jpg';
+import prepBowlsUrl from '../assets/IMG_3653.webp';
+import eventRoomUrl from '../assets/IMG_1313.webp';
+import kitchenCrewUrl from '../assets/IMG_3682.webp';
+import pastryPlatesUrl from '../assets/IMG_0561.webp';
+import sildHeroUrl from '../assets/SILD_20311.webp';
+import sildTomatoUrl from '../assets/SILD_20465.webp';
+import sildWholeUrl from '../assets/SILD_20277.webp';
+import sildAsparagusUrl from '../assets/SILD_20496.webp';
+import sildBreadUrl from '../assets/SILD_20420.webp';
 
 const formats = [
   {

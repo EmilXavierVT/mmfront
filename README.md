@@ -1,5 +1,33 @@
 # React + Vite
 
+## Run the published container
+
+The GitHub workflow builds and pushes this app as:
+
+```sh
+DOCKERHUB_USERNAME/mmfront:latest
+DOCKERHUB_USERNAME/mmfront:main
+DOCKERHUB_USERNAME/mmfront:<git-sha>
+```
+
+To pull and run the published image with Docker Compose:
+
+```sh
+DOCKER_IMAGE=your-dockerhub-username/mmfront:latest docker compose up -d
+```
+
+Then open:
+
+```sh
+http://localhost:8080
+```
+
+You can change the local port if needed:
+
+```sh
+APP_PORT=3000 DOCKER_IMAGE=your-dockerhub-username/mmfront:latest docker compose up -d
+```
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

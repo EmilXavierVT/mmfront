@@ -1,9 +1,4 @@
 export function Footer({ onNav }) {
-  const goToAbout = () => {
-    onNav('about');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   return (
     <footer className="footer">
       <div className="footer-inner">
@@ -23,7 +18,7 @@ export function Footer({ onNav }) {
         <div>
           <h6>Company</h6>
           <ul>
-            <li><button type="button" className="footer-link" onClick={goToAbout}>About</button></li>
+            <li><button type="button" className="footer-link" onClick={() => onNav('about')}>About</button></li>
             <li>Sustainability</li>
             <li>Press</li>
             <li>Careers</li>

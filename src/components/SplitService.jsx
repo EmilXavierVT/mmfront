@@ -1,6 +1,6 @@
 import { Icon } from './Icon.jsx';
-import cateringHeroUrl from '../assets/catering-hero.jpg';
-import cleaningHeroUrl from '../assets/cleaning-hero.jpg';
+import cateringHeroUrl from '../assets/catering-hero.webp';
+import cleaningHeroUrl from '../assets/cleaning-hero.webp';
 
 export function SplitService({ onBook }) {
   return (
