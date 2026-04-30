@@ -41,7 +41,8 @@ function pickId(data, claims) {
 
 function normalizeRole(value) {
   if (Array.isArray(value)) {
-    return value.map(normalizeRole).find(Boolean) || '';
+    const roles = value.map(normalizeRole).filter(Boolean);
+    return roles.includes('ADMIN') ? 'ADMIN' : roles[0] || '';
   }
 
   if (typeof value === 'object') {

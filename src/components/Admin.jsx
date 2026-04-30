@@ -165,7 +165,7 @@ function getUserRole(customer) {
 }
 
 function isAdminUser(customer) {
-  return String(getUserRole(customer)).toLowerCase() === 'admin';
+  return String(getUserRole(customer)).replace(/^ROLE_/i, '').toLowerCase() === 'admin';
 }
 
 function getUserKey(customer) {
@@ -1589,19 +1589,17 @@ export function Admin({
                                 ? 'Loading'
                                 : `${selectedCustomerRequestsState.items.length} request${selectedCustomerRequestsState.items.length === 1 ? '' : 's'}`}
                             </div>
-                            <button
-                              className="btn btn-blue"
-                              type="button"
-                              onClick={() => makeUserAdmin(selectedCustomer)}
-                              disabled={!selectedCustomer.id || isAdminUser(selectedCustomer) || settingAdminUserId === selectedCustomer.id}
-                            >
-                              {settingAdminUserId === selectedCustomer.id
-                                ? 'Updating...'
-                                : isAdminUser(selectedCustomer)
-                                  ? 'Admin'
-                                  : 'Make admin'}
-                              <Icon name="check" size={18} />
-                            </button>
+                            {!isAdminUser(selectedCustomer) && (
+                              <button
+                                className="btn btn-blue"
+                                type="button"
+                                onClick={() => makeUserAdmin(selectedCustomer)}
+                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                              >
+                                {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make admin'}
+                                <Icon name="check" size={18} />
+                              </button>
+                            )}
                           </div>
                         </div>
 
