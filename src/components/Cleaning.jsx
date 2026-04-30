@@ -22,7 +22,7 @@ const services = [
 
 const standards = ['Eco-certified products', 'Vetted crews', 'Own tools', 'Copenhagen-based'];
 
-export function Cleaning({ products, loading, error, onRetry, onBook, onClearCart }) {
+export function Cleaning({ products, loading, error, user, onRetry, onBook, onClearCart, onRequireAuth }) {
   return (
     <main className="cleaning-page">
       <section className="cleaning-hero">
@@ -104,7 +104,14 @@ export function Cleaning({ products, loading, error, onRetry, onBook, onClearCar
         )}
       </section>
 
-      <Booking cart={{}} dishes={[]} onClearCart={onClearCart} initialService="cleaning" />
+      <Booking
+        cart={{}}
+        dishes={[]}
+        user={user}
+        onClearCart={onClearCart}
+        initialService="cleaning"
+        onRequireAuth={onRequireAuth}
+      />
     </main>
   );
 }

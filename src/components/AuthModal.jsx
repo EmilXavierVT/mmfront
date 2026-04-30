@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { login, register } from '../api/client.js';
 import { Icon } from './Icon.jsx';
 
-export function AuthModal({ onClose, onAuthenticated }) {
-  const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState('');
+export function AuthModal({ onClose, onAuthenticated, initialEmail = '', initialMode = 'login' }) {
+  const [mode, setMode] = useState(initialMode);
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

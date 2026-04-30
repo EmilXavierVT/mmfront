@@ -33,6 +33,8 @@ export default function App() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState('');
   const [authOpen, setAuthOpen] = useState(false);
+  const [authInitialEmail, setAuthInitialEmail] = useState('');
+  const [authInitialMode, setAuthInitialMode] = useState('login');
   const [user, setUser] = useState(() => getStoredUser());
   const cateringProducts = useMemo(
     () => products.filter((product) => Number(product.type) !== CLEANING_PRODUCT_TYPE),
@@ -112,6 +114,12 @@ export default function App() {
     setTimeout(()=>setToast(null), 1800);
   };
 
+  const openAuth = (initialEmail = '', initialMode = 'login') => {
+    setAuthInitialEmail(initialEmail);
+    setAuthInitialMode(initialMode);
+    setAuthOpen(true);
+  };
+
   const scrollToBook = (page = 'home') => {
     setActive(page);
     window.setTimeout(() => {
@@ -127,7 +135,7 @@ export default function App() {
         onNav={navigateTo}
         user={user}
         isAdmin={isAdmin}
-        onAccount={() => setAuthOpen(true)}
+        onAccount={() => openAuth()}
       />
       {active === 'admin' && isAdmin ? (
         <div className="page">
@@ -156,10 +164,12 @@ export default function App() {
             products={cateringProducts}
             loading={productsLoading}
             error={productsError}
+            user={user}
             onAdd={addToCart}
             onRetry={loadProducts}
             onClearCart={clearCart}
             onBook={() => scrollToBook('catering')}
+            onRequireAuth={(email) => openAuth(email)}
           />
         </div>
       ) : active === 'cleaning' ? (
@@ -168,9 +178,11 @@ export default function App() {
             products={cleaningProducts}
             loading={productsLoading}
             error={productsError}
+            user={user}
             onRetry={loadProducts}
             onClearCart={clearCart}
             onBook={() => scrollToBook('cleaning')}
+            onRequireAuth={(email) => openAuth(email)}
           />
         </div>
       ) : (
@@ -187,7 +199,13 @@ export default function App() {
             onAdd={addToCart}
             onRetry={loadProducts}
           />
-          <Booking cart={cart} dishes={cateringProducts} onClearCart={clearCart}/>
+          <Booking
+            cart={cart}
+            dishes={cateringProducts}
+            user={user}
+            onClearCart={clearCart}
+            onRequireAuth={(email) => openAuth(email)}
+          />
           <Testimonials/>
           <FAQ/>
           <BigCTA onBook={()=>scrollToBook()}/>
@@ -197,6 +215,8 @@ export default function App() {
       <TweaksUI tweaks={tweaks} setTweak={setTweak}/>
       {authOpen && (
         <AuthModal
+          initialEmail={authInitialEmail}
+          initialMode={authInitialMode}
           onClose={() => setAuthOpen(false)}
           onAuthenticated={(nextUser) => {
             setUser(nextUser);

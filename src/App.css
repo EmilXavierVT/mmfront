@@ -673,6 +673,64 @@ a { color: inherit; text-decoration: none; }
   transform: none;
 }
 
+.booking-success-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.booking-success-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(28,26,28,0.72);
+  backdrop-filter: blur(8px);
+}
+
+.booking-success-modal {
+  position: relative;
+  width: min(460px, 100%);
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+}
+
+.booking-success-mark {
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--pink);
+  color: var(--ink);
+  margin-bottom: 18px;
+}
+
+.booking-success-modal .section-eyebrow {
+  color: var(--blue);
+  margin-bottom: 8px;
+}
+
+.booking-success-modal .section-eyebrow::before { background: var(--blue); }
+
+.booking-success-modal h2 {
+  margin: 0 0 12px;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.booking-success-modal p {
+  margin: 0 0 22px;
+  color: rgba(28,26,28,0.72);
+  font-weight: 500;
+}
+
 /* segmented control */
 .segmented {
   display: flex;
@@ -1862,6 +1920,9 @@ a { color: inherit; text-decoration: none; }
 .admin-products {
   margin-top: 26px;
 }
+.admin-email {
+  margin-top: 26px;
+}
 .admin-product-form {
   background: var(--cream);
   color: var(--ink);
@@ -1880,6 +1941,15 @@ a { color: inherit; text-decoration: none; }
 }
 .admin-product-submit .btn {
   width: 100%;
+}
+.admin-email-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.admin-email-actions .btn {
+  min-width: 180px;
+  justify-content: center;
 }
 .admin-products-list {
   margin-top: 34px;

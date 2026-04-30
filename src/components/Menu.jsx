@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { PRODUCT_TYPE_LABELS } from '../lib/products.js';
 
+const MENU_TAB_ORDER = ['Mains', 'Sides', 'Sweets', 'Drinks'];
+
 export function Menu({ cart, products, loading, error, onAdd, onRetry }) {
   const groups = useMemo(() => {
     return products.reduce((acc, product) => {
@@ -9,7 +11,11 @@ export function Menu({ cart, products, loading, error, onAdd, onRetry }) {
       return acc;
     }, {});
   }, [products]);
-  const tabs = Object.keys(groups);
+  const tabs = Object.keys(groups).sort((a, b) => {
+    const indexA = MENU_TAB_ORDER.indexOf(a);
+    const indexB = MENU_TAB_ORDER.indexOf(b);
+    return (indexA === -1 ? MENU_TAB_ORDER.length : indexA) - (indexB === -1 ? MENU_TAB_ORDER.length : indexB);
+  });
   const [tab, setTab] = useState('');
   const activeTab = tabs.includes(tab) ? tab : tabs[0] || '';
   const items = groups[activeTab] || [];

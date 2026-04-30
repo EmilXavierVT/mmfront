@@ -41,7 +41,7 @@ function pickId(data, claims) {
 
 function normalizeRole(value) {
   if (Array.isArray(value)) {
-    const roles = value.map(normalizeRole).filter(Boolean);
+    const roles = value.flatMap(role => normalizeRole(role).split(',')).filter(Boolean);
     return roles.includes('ADMIN') ? 'ADMIN' : roles[0] || '';
   }
 
@@ -51,21 +51,25 @@ function normalizeRole(value) {
 
   if (!value) return '';
 
-  const role = String(value).replace(/^ROLE_/i, '').toUpperCase();
+  const role = String(value)
+    .split(',')
+    .map(item => item.trim().replace(/^ROLE_/i, '').toUpperCase())
+    .filter(Boolean)
+    .join(',');
   return role;
 }
 
 function pickRole(data, claims) {
-  return normalizeRole(
-    data?.role
-      ?? data?.user?.role
-      ?? data?.roles
-      ?? data?.user?.roles
-      ?? claims?.role
-      ?? claims?.roles
-      ?? claims?.authorities
-      ?? claims?.authority,
-  );
+  return normalizeRole([
+    data?.role,
+    data?.user?.role,
+    data?.roles,
+    data?.user?.roles,
+    claims?.role,
+    claims?.roles,
+    claims?.authorities,
+    claims?.authority,
+  ]);
 }
 
 function normalizeCredentials(credentials, key = 'email') {
@@ -122,6 +126,26 @@ async function parseJsonResponse(response) {
   return data;
 }
 
+async function fetchJson(path, options = {}) {
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    return parseJsonResponse(response);
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error('Could not reach the API. Check your connection and try again.', { cause: err });
+    }
+
+    throw err;
+  }
+}
+
 function storeAuthSession(data, credentials) {
   if (data?.token) {
     localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
@@ -142,7 +166,7 @@ export function getStoredUser() {
     const token = localStorage.getItem(TOKEN_STORAGE_KEY);
     const claims = decodeJwtPayload(token);
     const id = storedUser?.id || storedUser?.userId || pickId(null, claims);
-    const role = storedUser?.role || pickRole(null, claims);
+    const role = pickRole(storedUser, claims) || storedUser?.role;
 
     if (!id && !role) return storedUser;
 
@@ -171,12 +195,10 @@ async function requestLogin(credentials, persistUser = true) {
     const payload = loginPayloads[index];
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login/`, {
+      data = await fetchJson('/auth/login/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      data = await parseJsonResponse(response);
       nextCredentials = payload;
       break;
     } catch (err) {
@@ -211,14 +233,17 @@ export async function login(credentials) {
   return requestLogin(credentials);
 }
 
-export async function register(credentials) {
+export async function registerAccount(credentials) {
   const nextCredentials = normalizeCredentials(credentials);
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+  return fetchJson('/auth/register/', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(nextCredentials),
   });
-  const data = await parseJsonResponse(response);
+}
+
+export async function register(credentials) {
+  const nextCredentials = normalizeCredentials(credentials);
+  const data = await registerAccount(nextCredentials);
 
   if (data?.token) {
     return storeAuthSession(data, nextCredentials);

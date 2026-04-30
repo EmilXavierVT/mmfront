@@ -42,10 +42,12 @@ export function Catering({
   products,
   loading,
   error,
+  user,
   onAdd,
   onRetry,
   onClearCart,
   onBook,
+  onRequireAuth,
 }) {
   return (
     <main className="catering-page">
@@ -120,7 +122,13 @@ export function Catering({
         onRetry={onRetry}
       />
 
-      <Booking cart={cart} dishes={dishes} onClearCart={onClearCart} />
+      <Booking
+        cart={cart}
+        dishes={dishes}
+        user={user}
+        onClearCart={onClearCart}
+        onRequireAuth={onRequireAuth}
+      />
     </main>
   );
 }
