@@ -70,11 +70,7 @@ export function Catering({
             </a>
           </div>
         </div>
-        <div className="catering-proof">
-          {promises.map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-        </div>
+       
       </section>
 
       <section className="section catering-intro">
