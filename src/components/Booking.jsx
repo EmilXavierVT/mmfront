@@ -146,6 +146,10 @@ export function Booking({
   const cateringSubtotal = itemsTotal * guests;
   const cleaningHours = Math.max(2, Math.ceil(guests/2));
   const cleaningTotal = cleaningHours * 400;
+  const updateGuests = (value) => {
+    const nextGuests = Number(value);
+    setGuests(Number.isFinite(nextGuests) ? Math.max(15, Math.floor(nextGuests)) : 15);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -275,9 +279,18 @@ export function Booking({
               <div className="field">
                 <label>{service==='catering'?'Guests':'Rooms / size (m²÷10)'}</label>
                 <div className="guest-stepper">
-                  <button type="button" onClick={()=>setGuests(Math.max(2, guests-2))}><Icon name="minus" size={16}/></button>
-                  <div className="count">{guests}</div>
-                  <button type="button" onClick={()=>setGuests(guests+2)}><Icon name="plus" size={16}/></button>
+                  <button type="button" onClick={()=>updateGuests(guests-1)}><Icon name="minus" size={16}/></button>
+                  <input
+                    className="count"
+                    type="number"
+                    min="15"
+                    step="1"
+                    inputMode="numeric"
+                    value={guests}
+                    onChange={e=>updateGuests(e.target.value)}
+                    aria-label={service==='catering'?'Guests':'Rooms / size estimate'}
+                  />
+                  <button type="button" onClick={()=>updateGuests(guests+1)}><Icon name="plus" size={16}/></button>
                 </div>
               </div>
               <div className="field">
