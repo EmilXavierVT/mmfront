@@ -1,6 +1,6 @@
 import { Icon } from './Icon.jsx';
 
-export function Topbar({ active, onNav, cartCount, user, onAccount }) {
+export function Topbar({ active, onNav, user, isAdmin = false, onAccount }) {
   return (
     <header className="topbar">
       <div className="nav-left">
@@ -11,11 +11,18 @@ export function Topbar({ active, onNav, cartCount, user, onAccount }) {
         <button className={`nav-link ${active==='cleaning'?'active':''}`} onClick={()=>onNav('cleaning')}>
           <Icon name="spray" size={16}/><span>Cleaning</span>
         </button>
-        <button className={`nav-link ${active==='about'?'active':''}`} onClick={()=>onNav('about')}>
-          <span>About</span>
-        </button>
+        {isAdmin && (
+          <button className={`nav-link ${active==='admin'?'active':''}`} onClick={()=>onNav('admin')}>
+            <Icon name="user" size={16}/><span>Admin</span>
+          </button>
+        )}
       </div>
-      <div className="brand-mark" aria-label="Morgendagens Måltid">
+      <button
+        className={`brand-mark ${active === 'about' ? 'active' : ''}`}
+        type="button"
+        onClick={() => onNav('about')}
+        aria-label="About Morgendagens Måltid"
+      >
         <span className="brand-wordmark">MORGENDAGENS<br/>MÅLTID</span>
         <svg className="brand-mobile-mark" width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M72.4649 18.1727C76.5256 13.0209 87.4918 21.9996 86.9431 27.2562C86.3626 32.8358 72.3693 49.9003 69.9676 56.4761C66.7596 59.2221 56.442 54.6803 56.7214 50.1616C56.8314 48.3859 70.926 20.1221 72.4634 18.1727H72.4649Z" fill="#FF1DFF"/>
@@ -25,14 +32,8 @@ export function Topbar({ active, onNav, cartCount, user, onAccount }) {
           <path d="M78.1081 99.9972C63.3201 95.3104 57.7161 95.8157 55.7994 78.856C55.2797 74.2525 58.246 82.7431 58.8077 81.5575C58.2358 71.8912 53.305 63.1207 47.3638 55.7597C53.2602 54.8913 55.9963 60.3158 61.8825 61.4886C65.2368 62.1575 68.9704 61.3795 71.6297 62.1503C75.2012 63.1867 80.614 72.3778 87.6773 66.7954C89.636 65.2465 91.1604 59.9584 94.215 58.8488C93.8574 73.9511 87.9378 88.6371 78.1096 100L78.1081 99.9972Z" fill="#FF1DFF"/>
           <path d="M99.9174 42.4446C99.6887 43.7035 86.8116 63.1509 85.6983 63.7997C82.0096 65.9485 74.169 59.7489 74.9363 55.6679C75.233 54.086 87.6208 33.72 88.9845 32.4898C94.4423 27.5691 100.8 37.5742 99.9174 42.4432V42.4446Z" fill="#FF1DFF"/>
         </svg>
-      </div>
+      </button>
       <div className="nav-right">
-        <button className="icon-btn" aria-label="Cart" style={{position:'relative'}}>
-          <Icon name="cart" />
-          {cartCount > 0 && (
-            <span style={{position:'absolute',top:-4,right:-4,background:'#1c1a1c',color:'#efefef',width:20,height:20,borderRadius:'50%',fontSize:11,display:'grid',placeItems:'center',fontWeight:800}}>{cartCount}</span>
-          )}
-        </button>
         {user ? (
           <button className={`account-pill ${active === 'profile' ? 'active' : ''}`} type="button" onClick={() => onNav('profile')} aria-label="Profile">
             <span>{user.email}</span>

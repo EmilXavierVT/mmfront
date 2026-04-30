@@ -4,6 +4,7 @@ import { getStoredUser, logout } from './api/client.js';
 import { productApi } from './api/products.js';
 import { AuthModal } from './components/AuthModal.jsx';
 import { About } from './components/About.jsx';
+import { Admin } from './components/Admin.jsx';
 import { BigCTA } from './components/BigCTA.jsx';
 import { Booking } from './components/Booking.jsx';
 import { Catering } from './components/Catering.jsx';
@@ -41,7 +42,7 @@ export default function App() {
     () => products.filter((product) => Number(product.type) === CLEANING_PRODUCT_TYPE),
     [products],
   );
-  const cartCount = Object.values(cart).reduce((a,b)=>a+b, 0);
+  const isAdmin = user?.role === 'ADMIN';
 
   const loadProducts = async () => {
     setProductsLoading(true);
@@ -124,11 +125,22 @@ export default function App() {
       <Topbar
         active={active}
         onNav={navigateTo}
-        cartCount={cartCount}
         user={user}
+        isAdmin={isAdmin}
         onAccount={() => setAuthOpen(true)}
       />
-      {active === 'profile' && user ? (
+      {active === 'admin' && isAdmin ? (
+        <div className="page">
+          <Admin
+            user={user}
+            products={products}
+            productsLoading={productsLoading}
+            productsError={productsError}
+            onLogout={handleLogout}
+            onProductsChanged={loadProducts}
+          />
+        </div>
+      ) : active === 'profile' && user ? (
         <div className="page">
           <Profile user={user} onBook={scrollToBook} onLogout={handleLogout} />
         </div>
@@ -188,7 +200,7 @@ export default function App() {
           onClose={() => setAuthOpen(false)}
           onAuthenticated={(nextUser) => {
             setUser(nextUser);
-            setActive('profile');
+            setActive(nextUser?.role === 'ADMIN' ? 'admin' : 'profile');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             setToast('Logged in');
             setTimeout(()=>setToast(null), 1800);

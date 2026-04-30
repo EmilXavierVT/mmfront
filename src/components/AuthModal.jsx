@@ -62,8 +62,14 @@ export function AuthModal({ onClose, onAuthenticated }) {
         </div>
 
         <div className="field">
-          <label>Email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@inbox.dk" required />
+          <label>{mode === 'login' ? 'Email or username' : 'Email'}</label>
+          <input
+            type={mode === 'login' ? 'text' : 'email'}
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder={mode === 'login' ? 'you@inbox.dk or admin' : 'you@inbox.dk'}
+            required
+          />
         </div>
 
         <div className="field">

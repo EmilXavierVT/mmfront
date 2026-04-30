@@ -127,6 +127,9 @@ a { color: inherit; text-decoration: none; }
 .account-pill:hover { background: rgba(239,239,239,0.48); }
 .account-pill.active { background: var(--ink); color: var(--cream); }
 .topbar .brand-mark {
+  appearance: none;
+  border: 0;
+  background: transparent;
   font-family: 'Azeret Mono', monospace;
   font-style: italic;
   font-weight: 800;
@@ -136,7 +139,16 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.05;
   display: grid;
   place-items: center;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
 }
+.topbar .brand-mark:hover { transform: translateY(-1px); }
+.topbar .brand-mark:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 6px;
+}
+.topbar .brand-mark.active { color: var(--cream); }
 .brand-mobile-mark {
   display: none;
   width: 40px;
@@ -640,6 +652,16 @@ a { color: inherit; text-decoration: none; }
   border: 2px solid rgba(250,93,93,0.45);
   border-radius: 10px;
   color: #8a1818;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+}
+.form-success {
+  background: rgba(168,242,162,0.2);
+  border: 2px solid rgba(28,26,28,0.18);
+  border-radius: 10px;
+  color: var(--ink);
   font-size: 13px;
   line-height: 1.4;
   margin: 0 0 14px;
@@ -1763,10 +1785,13 @@ a { color: inherit; text-decoration: none; }
 }
 .profile-panel p {
   margin: 0 0 22px;
-  color: rgba(239,239,239,0.7);
+  color: rgba(28,26,28,0.7);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
+}
+.profile-panel.accent p {
+  color: rgba(239,239,239,0.7);
 }
 .profile-panel dl {
   display: grid;
@@ -1811,6 +1836,526 @@ a { color: inherit; text-decoration: none; }
   padding: 22px;
   font-size: 14px;
   line-height: 1.45;
+}
+.admin-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+  border-bottom: 2px solid var(--ink);
+}
+.admin-tab {
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  padding: 12px 18px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.admin-tab.active {
+  background: var(--pink);
+  color: var(--white);
+}
+.admin-products {
+  margin-top: 26px;
+}
+.admin-product-form {
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 24px;
+}
+.admin-user-form {
+  margin-bottom: 24px;
+}
+.admin-product-submit {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  min-height: 78px;
+}
+.admin-product-submit .btn {
+  width: 100%;
+}
+.admin-products-list {
+  margin-top: 34px;
+}
+.admin-products-list-head {
+  margin-bottom: 18px;
+}
+.admin-product-search {
+  max-width: 620px;
+}
+.admin-product-table-wrap {
+  overflow-x: auto;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--cream);
+}
+.admin-product-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  color: var(--ink);
+}
+.admin-product-table th,
+.admin-product-table td {
+  border-bottom: 2px solid rgba(28,26,28,0.12);
+  border-right: 2px solid rgba(28,26,28,0.12);
+  padding: 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+.admin-product-table th:last-child,
+.admin-product-table td:last-child {
+  border-right: 0;
+}
+.admin-product-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.admin-product-table th {
+  background: var(--cream);
+  color: var(--pink);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.admin-product-table td {
+  background: var(--white);
+}
+.admin-product-table input,
+.admin-product-table select,
+.admin-product-table textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 2px solid rgba(28,26,28,0.18);
+  border-radius: 8px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 13px;
+  resize: vertical;
+}
+.admin-product-table input:focus,
+.admin-product-table select:focus,
+.admin-product-table textarea:focus {
+  box-shadow: 0 0 0 3px var(--pink-soft);
+}
+.admin-product-table td:nth-child(1) {
+  width: 80px;
+}
+.admin-product-table td:nth-child(3) {
+  width: 150px;
+}
+.admin-product-table td:nth-child(4) {
+  width: 115px;
+}
+.admin-product-table td:nth-child(6) {
+  width: 240px;
+}
+.admin-product-id {
+  color: var(--pink);
+  font-weight: 900;
+  white-space: nowrap;
+}
+.admin-product-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.admin-product-actions .btn {
+  flex: 1 1 96px;
+  justify-content: center;
+  min-width: 0;
+}
+.admin-delete-product-btn {
+  color: var(--ink);
+}
+.admin-request-display {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.admin-request-queue {
+  display: grid;
+  gap: 10px;
+  max-height: min(620px, 68vh);
+  overflow-y: auto;
+  padding: 4px 8px 4px 0;
+  scrollbar-width: thin;
+}
+.admin-request-row {
+  width: 100%;
+  display: grid;
+  gap: 7px;
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: left;
+}
+.admin-request-row:hover,
+.admin-request-row.selected {
+  border-color: var(--pink);
+  background: var(--white);
+}
+.admin-request-row span {
+  color: var(--pink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.admin-request-row strong {
+  font-size: 19px;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.admin-request-row small {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0.68;
+  overflow-wrap: anywhere;
+}
+.admin-request-detail {
+  min-width: 0;
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 24px;
+}
+.admin-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 2px solid rgba(28,26,28,0.14);
+  padding-bottom: 18px;
+  margin-bottom: 20px;
+}
+.admin-detail-head span,
+.admin-detail-section h4 {
+  display: block;
+  color: var(--pink);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0 0 9px;
+}
+.admin-detail-head h3 {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 0.98;
+  overflow-wrap: anywhere;
+}
+.admin-status-pill {
+  flex: 0 0 auto;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.admin-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.admin-dismiss-btn {
+  color: var(--ink);
+}
+.admin-detail-grid,
+.admin-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+.admin-detail-grid div,
+.admin-extra-grid div {
+  border: 2px solid rgba(28,26,28,0.12);
+  border-radius: 10px;
+  background: var(--white);
+  padding: 13px 14px;
+  min-width: 0;
+}
+.admin-detail-grid dt,
+.admin-extra-grid dt {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 7px;
+  opacity: 0.68;
+}
+.admin-detail-grid dd,
+.admin-extra-grid dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.admin-detail-section {
+  margin-top: 24px;
+}
+.admin-product-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.admin-product-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border: 2px solid rgba(28,26,28,0.12);
+  border-radius: 10px;
+  padding: 13px 14px;
+  background: var(--white);
+}
+.admin-product-list strong,
+.admin-product-list small {
+  display: block;
+}
+.admin-product-list strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+.admin-product-list small {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  opacity: 0.62;
+}
+.admin-product-list li > span {
+  flex: 0 0 auto;
+  min-width: 32px;
+  color: var(--pink);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: right;
+  text-transform: uppercase;
+}
+.admin-calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+.admin-calendar-board {
+  min-width: 0;
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 18px;
+}
+.admin-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 2px solid rgba(28,26,28,0.14);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+.admin-calendar-head h3 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 1;
+  text-align: center;
+  text-transform: capitalize;
+}
+.admin-calendar-nav {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: var(--blue);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 0 4px 0 var(--ink);
+}
+.admin-calendar-nav:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--ink);
+}
+.admin-calendar-weekdays,
+.admin-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.admin-calendar-weekdays {
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.admin-calendar-weekdays span {
+  color: var(--pink);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.admin-calendar-grid {
+  border-top: 2px solid var(--ink);
+  border-left: 2px solid var(--ink);
+}
+.admin-calendar-day {
+  min-width: 0;
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--white);
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  padding: 9px;
+}
+.admin-calendar-day.muted {
+  background: rgba(255,255,255,0.52);
+}
+.admin-calendar-date {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--cream);
+  border: 2px solid rgba(28,26,28,0.16);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 900;
+}
+.admin-calendar-events {
+  display: grid;
+  gap: 6px;
+}
+.admin-calendar-event {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  background: var(--ink-2);
+  color: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: left;
+}
+.admin-calendar-event:hover,
+.admin-calendar-event.selected {
+  background: var(--pink);
+  color: var(--white);
+}
+.admin-calendar-event strong,
+.admin-calendar-event small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-calendar-event strong {
+  font-size: 12px;
+  line-height: 1.15;
+}
+.admin-calendar-event small {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.76;
+}
+.admin-calendar-detail {
+  position: sticky;
+  top: 82px;
+}
+.admin-customer-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.admin-customer-table-wrap {
+  overflow-x: auto;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--white);
+}
+.admin-customer-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  color: var(--ink);
+}
+.admin-customer-table th,
+.admin-customer-table td {
+  border-bottom: 2px solid rgba(28,26,28,0.12);
+  border-right: 2px solid rgba(28,26,28,0.12);
+  padding: 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.admin-customer-table th:last-child,
+.admin-customer-table td:last-child {
+  border-right: 0;
+}
+.admin-customer-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.admin-customer-table th {
+  background: var(--cream);
+  color: var(--pink);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.admin-customer-table td {
+  background: var(--white);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.admin-logout-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 28px;
+  background: var(--ink-2);
+  color: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+.admin-logout-panel span {
+  display: block;
+  color: var(--pink);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.admin-logout-panel p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 .request-list {
   display: grid;
@@ -1858,7 +2403,7 @@ a { color: inherit; text-decoration: none; }
 }
 .request-card dl {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px;
   margin: 0;
 }
@@ -2049,6 +2594,21 @@ a { color: inherit; text-decoration: none; }
   }
   .profile-grid { grid-template-columns: 1fr; }
   .profile-hero { align-items: flex-start; flex-direction: column; }
+  .admin-request-display { grid-template-columns: 1fr; }
+  .admin-customer-layout { grid-template-columns: 1fr; }
+  .admin-calendar-layout { grid-template-columns: 1fr; }
+  .admin-calendar-detail {
+    position: static;
+  }
+  .admin-request-queue {
+    max-height: 360px;
+    padding-right: 0;
+  }
+  .admin-product-table {
+    min-width: 860px;
+  }
+  .admin-detail-grid,
+  .admin-extra-grid { grid-template-columns: 1fr 1fr; }
   .request-card-main { grid-template-columns: 1fr auto; }
   .request-card-main dl { grid-column: 1 / -1; }
   .hero { height: 460px; }
@@ -2136,5 +2696,49 @@ a { color: inherit; text-decoration: none; }
   .account-pill { max-width: 44px; padding: 7px 10px; }
   .account-pill span { display: none; }
   .profile-section-head { align-items: flex-start; flex-direction: column; }
+  .admin-request-detail { padding: 18px; }
+  .admin-detail-head { flex-direction: column; }
+  .admin-detail-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .admin-logout-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .admin-tabs {
+    align-items: stretch;
+    flex-direction: column;
+    border-bottom: 0;
+  }
+  .admin-tab {
+    width: 100%;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+  }
+  .admin-product-submit {
+    align-items: stretch;
+    min-height: auto;
+  }
+  .admin-product-table-wrap {
+    margin-inline: -6px;
+  }
+  .admin-customer-table-wrap {
+    margin-inline: -6px;
+  }
+  .admin-calendar-board {
+    margin-inline: -6px;
+    padding: 12px;
+    overflow-x: auto;
+  }
+  .admin-calendar-weekdays,
+  .admin-calendar-grid {
+    min-width: 680px;
+  }
+  .admin-calendar-day {
+    min-height: 108px;
+  }
+  .admin-detail-grid,
+  .admin-extra-grid { grid-template-columns: 1fr; }
   .request-card-main dl { grid-template-columns: 1fr; }
 }

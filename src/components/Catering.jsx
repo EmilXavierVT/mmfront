@@ -29,8 +29,6 @@ const formats = [
   },
 ];
 
-const promises = ['Allergy-aware', 'Seasonal menus', 'Plant-forward', 'Real quotes'];
-
 const sildPhotos = [
   { src: sildTomatoUrl, alt: 'Sild served with tomato, peppers, and bread' },
   { src: sildWholeUrl, alt: 'Whole grilled sild plated with potatoes and tomatoes' },
