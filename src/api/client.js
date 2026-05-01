@@ -39,6 +39,19 @@ function pickId(data, claims) {
     ?? (Number.isFinite(Number(claims?.sub)) ? Number(claims.sub) : null);
 }
 
+function pickTenantId(data, claims) {
+  return data?.tenantId
+    ?? data?.tenantDTO?.id
+    ?? data?.tenant?.id
+    ?? data?.user?.tenantId
+    ?? data?.user?.tenantDTO?.id
+    ?? data?.user?.tenant?.id
+    ?? claims?.tenantId
+    ?? claims?.tenant_id
+    ?? claims?.tenant?.id
+    ?? null;
+}
+
 function normalizeRole(value) {
   if (Array.isArray(value)) {
     const roles = value.flatMap(role => normalizeRole(role).split(',')).filter(Boolean);
@@ -102,6 +115,7 @@ function buildUserSession(data, credentials) {
   return {
     email,
     id: pickId(data, claims),
+    tenantId: pickTenantId(data, claims),
     role: pickRole(data, claims),
   };
 }
@@ -166,11 +180,15 @@ export function getStoredUser() {
     const token = localStorage.getItem(TOKEN_STORAGE_KEY);
     const claims = decodeJwtPayload(token);
     const id = storedUser?.id || storedUser?.userId || pickId(null, claims);
+    const tenantId = storedUser?.tenantId
+      || storedUser?.tenantDTO?.id
+      || storedUser?.tenant?.id
+      || pickTenantId(storedUser, claims);
     const role = pickRole(storedUser, claims) || storedUser?.role;
 
-    if (!id && !role) return storedUser;
+    if (!id && !tenantId && !role) return storedUser;
 
-    const nextUser = { ...storedUser, id, role };
+    const nextUser = { ...storedUser, id, tenantId, role };
     delete nextUser.userId;
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
     return nextUser;
@@ -185,7 +203,7 @@ export function logout() {
   localStorage.removeItem(USER_STORAGE_KEY);
 }
 
-async function requestLogin(credentials, persistUser = true) {
+async function requestLogin(credentials, persistUser = true, includeSession = false) {
   const loginPayloads = buildLoginPayloads(credentials);
   let nextCredentials = loginPayloads[0];
   let data;
@@ -221,12 +239,27 @@ async function requestLogin(credentials, persistUser = true) {
     throw new Error('Login response did not include a token.');
   }
 
-  localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
   if (persistUser) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
     return storeAuthSession(data, nextCredentials);
   }
 
+  if (includeSession) {
+    return {
+      token: data.token,
+      user: buildUserSession(data, nextCredentials),
+    };
+  }
+
   return data.token;
+}
+
+export async function getAuthToken(credentials) {
+  return requestLogin(credentials, false);
+}
+
+export async function getAuthSession(credentials) {
+  return requestLogin(credentials, false, true);
 }
 
 export async function login(credentials) {
@@ -257,12 +290,13 @@ function getToken() {
 }
 
 export async function apiRequest(path, options = {}, retryWithFreshToken = true) {
-  const token = getToken();
+  const { authToken, headers, ...fetchOptions } = options;
+  const token = authToken || getToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    ...fetchOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...headers,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });

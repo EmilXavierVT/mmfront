@@ -2,8 +2,9 @@ import { apiRequest } from './client.js';
 
 export const quoteRequestApi = {
   getAll: () => apiRequest('/request/all'),
-  create: (quoteRequest) => apiRequest('/request/', {
+  create: (quoteRequest, authToken) => apiRequest('/request/', {
     method: 'POST',
+    authToken,
     body: JSON.stringify(quoteRequest),
   }),
   update: (id, quoteRequest) => apiRequest(`/request/${id}`, {
@@ -14,8 +15,9 @@ export const quoteRequestApi = {
 };
 
 export const productInRequestApi = {
-  create: (productInRequest) => apiRequest('/product-in-requests/', {
+  create: (productInRequest, authToken) => apiRequest('/product-in-requests/', {
     method: 'POST',
+    authToken,
     body: JSON.stringify(productInRequest),
   }),
   getById: (id) => apiRequest(`/product-in-requests/${id}`),

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { registerAccount } from '../api/client.js';
+import { getAuthSession, registerAccount } from '../api/client.js';
 import { emailApi } from '../api/email.js';
 import { productInRequestApi, quoteRequestApi } from '../api/requests.js';
 import { toDateTimePayload, toTimePayload } from '../lib/datetime.js';
@@ -42,6 +42,8 @@ function escapeHtml(value) {
 function buildRequestConfirmationEmail({
   service,
   createdRequest,
+  accountEmail,
+  accountPassword,
   startDate,
   startTime,
   endDate,
@@ -84,6 +86,25 @@ function buildRequestConfirmationEmail({
     detailRows.push(['Rooms / size estimate', escapeHtml(guests)]);
   }
 
+  if (accountEmail && accountPassword) {
+    sections.push(`
+      <h2 style="font-size:18px;margin:24px 0 12px;color:#111827;">Your account</h2>
+      <p style="margin:0 0 12px;color:#374151;">We created an account so you can follow your request online.</p>
+      <table style="width:100%;border-collapse:collapse;background:#f9fafb;border:1px solid #e5e7eb;">
+        <tbody>
+          <tr>
+            <th style="text-align:left;padding:12px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:600;width:40%;">Email</th>
+            <td style="padding:12px;border-bottom:1px solid #e5e7eb;color:#111827;">${escapeHtml(accountEmail)}</td>
+          </tr>
+          <tr>
+            <th style="text-align:left;padding:12px;color:#6b7280;font-weight:600;width:40%;">Password</th>
+            <td style="padding:12px;color:#111827;">${escapeHtml(accountPassword)}</td>
+          </tr>
+        </tbody>
+      </table>
+    `);
+  }
+
   return {
     subject: `We received your ${serviceName} request`,
     body: `
@@ -112,6 +133,18 @@ function buildRequestConfirmationEmail({
       </div>
     `,
   };
+}
+
+function getUserTenantId(user) {
+  return user?.tenantId
+    || user?.tenantDTO?.id
+    || user?.tenant?.id
+    || user?.userDTO?.tenantId
+    || user?.userDTO?.tenantDTO?.id
+    || user?.userDTO?.tenant?.id
+    || user?.id
+    || user?.userId
+    || null;
 }
 
 export function Booking({
@@ -168,10 +201,50 @@ export function Booking({
     setAccountNotice('');
 
     try {
+      let requestAuthToken = null;
+      let newAccountEmail = '';
+      let newAccountPassword = '';
+      let requestTenantId = getUserTenantId(user);
+
+      if (!user) {
+        const accountCredentials = {
+          email: requestEmail,
+          password: BOOKING_USER_TEMP_PASSWORD,
+        };
+        let accountCreated = false;
+        let registeredAccount = null;
+
+        try {
+          registeredAccount = await registerAccount(accountCredentials);
+          requestTenantId = getUserTenantId(registeredAccount) || requestTenantId;
+          accountCreated = true;
+        } catch (err) {
+          if (err.status !== 409) {
+            throw err;
+          }
+        }
+
+        try {
+          const authSession = await getAuthSession(accountCredentials);
+          requestAuthToken = authSession.token;
+          requestTenantId = getUserTenantId(authSession.user) || requestTenantId;
+          if (accountCreated) {
+            newAccountEmail = requestEmail;
+            newAccountPassword = BOOKING_USER_TEMP_PASSWORD;
+          }
+          setAccountNotice(accountCreated
+            ? `We created an account for ${requestEmail}. Temporary password: ${BOOKING_USER_TEMP_PASSWORD}`
+            : `Request saved. Log in with ${requestEmail} to see it in your profile.`);
+        } catch {
+          setAccountNotice(`Request saved. ${requestEmail} may already have an account, so log in to see it in your profile.`);
+          if (onRequireAuth) onRequireAuth(requestEmail);
+        }
+      }
+
       const startDateTime = toDateTimePayload(startDate, startTime);
       const endDateTime = toDateTimePayload(endDate, endTime);
       const quoteRequest = {
-        tenantId: 1,
+        tenantId: requestTenantId || 1,
         startDate: startDateTime,
         endDate: endDateTime,
         location: location.trim(),
@@ -183,7 +256,7 @@ export function Booking({
         userEmail: requestEmail,
         weatherDTO: null,
       };
-      const createdRequest = await quoteRequestApi.create(quoteRequest);
+      const createdRequest = await quoteRequestApi.create(quoteRequest, requestAuthToken);
 
       if (createdRequest?.id && selectedDishes.length > 0) {
         await Promise.all(selectedDishes.map(d => productInRequestApi.create({
@@ -191,13 +264,15 @@ export function Booking({
           productId: d.id,
           time: toTimePayload(startTime),
           amount: guests,
-        })));
+        }, requestAuthToken)));
       }
 
       try {
         const confirmationEmail = buildRequestConfirmationEmail({
           service,
           createdRequest,
+          accountEmail: newAccountEmail,
+          accountPassword: newAccountPassword,
           startDate,
           startTime,
           endDate,
@@ -214,23 +289,10 @@ export function Booking({
           subject: confirmationEmail.subject,
           body: confirmationEmail.body,
           html: true,
-        });
+        }, requestAuthToken);
       } catch (err) {
         const message = err.message ? ` ${err.message}` : '';
         setEmailNotice(`Request saved, but the confirmation email could not be sent.${message}`);
-      }
-
-      if (!user) {
-        try {
-          await registerAccount({
-            email: requestEmail,
-            password: BOOKING_USER_TEMP_PASSWORD,
-          });
-          setAccountNotice(`We created an account for ${requestEmail}. Temporary password: ${BOOKING_USER_TEMP_PASSWORD}`);
-        } catch {
-          setAccountNotice(`Request saved. ${requestEmail} may already have an account, so log in to see it in your profile.`);
-          if (onRequireAuth) onRequireAuth(requestEmail);
-        }
       }
 
       setSubmitted(true);
