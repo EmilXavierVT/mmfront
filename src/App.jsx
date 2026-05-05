@@ -14,6 +14,7 @@ import { Footer } from './components/Footer.jsx';
 import { Hero } from './components/Hero.jsx';
 import { Menu } from './components/Menu.jsx';
 import { Profile } from './components/Profile.jsx';
+import { SEO } from './components/SEO.jsx';
 import { SplitService } from './components/SplitService.jsx';
 import { Steps } from './components/Steps.jsx';
 import { Testimonials } from './components/Testimonials.jsx';
@@ -130,6 +131,7 @@ export default function App() {
 
   return (
     <>
+      <SEO active={active} />
       <Topbar
         active={active}
         onNav={navigateTo}

@@ -1,4 +1,6 @@
-const API_BASE_URL = 'https://morgendagens.project-ice.dk/api';
+const REMOTE_API_BASE_URL = 'https://morgendagens.project-ice.dk/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  || (import.meta.env.DEV ? '/api' : REMOTE_API_BASE_URL);
 
 const TOKEN_STORAGE_KEY = 'mm_api_token';
 const USER_STORAGE_KEY = 'mm_api_user';
