@@ -4,6 +4,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const TOKEN_STORAGE_KEY = 'mm_api_token';
 const USER_STORAGE_KEY = 'mm_api_user';
+const LOGIN_PATHS = ['/auth/login/', '/auth/login'];
 
 class ApiError extends Error {
   constructor(message, response, data) {
@@ -28,6 +29,33 @@ function decodeJwtPayload(token) {
   } catch {
     return null;
   }
+}
+
+export function extractAuthToken(data) {
+  if (!data) return null;
+
+  if (typeof data === 'string') {
+    return data.replace(/^Bearer\s+/i, '').trim() || null;
+  }
+
+  const token = data.token
+    || data.accessToken
+    || data.access_token
+    || data.jwt
+    || data.jwtToken
+    || data.bearerToken
+    || data.authToken
+    || data.data?.token
+    || data.data?.accessToken
+    || data.data?.access_token
+    || data.data?.jwt
+    || data.user?.token
+    || data.user?.accessToken
+    || data.userDTO?.token
+    || data.userDTO?.accessToken
+    || null;
+
+  return typeof token === 'string' ? token.replace(/^Bearer\s+/i, '').trim() || null : null;
 }
 
 function pickId(data, claims) {
@@ -104,7 +132,7 @@ function buildLoginPayloads(credentials) {
 }
 
 function buildUserSession(data, credentials) {
-  const claims = decodeJwtPayload(data?.token);
+  const claims = decodeJwtPayload(extractAuthToken(data));
   const email = credentials.email
     || credentials.username
     || data?.email
@@ -163,8 +191,10 @@ async function fetchJson(path, options = {}) {
 }
 
 function storeAuthSession(data, credentials) {
-  if (data?.token) {
-    localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+  const token = extractAuthToken(data);
+
+  if (token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
   }
 
   const user = buildUserSession(data, credentials);
@@ -214,26 +244,42 @@ async function requestLogin(credentials, persistUser = true, includeSession = fa
   for (let index = 0; index < loginPayloads.length; index += 1) {
     const payload = loginPayloads[index];
 
-    try {
-      data = await fetchJson('/auth/login/', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      nextCredentials = payload;
-      break;
-    } catch (err) {
-      lastError = err;
-      const message = String(err.message || '').toLowerCase();
-      const shouldTryAlternateIdentifier = index < loginPayloads.length - 1
-        && (message.includes('user not found') || message.includes('not found') || err.status === 400);
+    for (let pathIndex = 0; pathIndex < LOGIN_PATHS.length; pathIndex += 1) {
+      const path = LOGIN_PATHS[pathIndex];
 
-      if (!shouldTryAlternateIdentifier) {
-        throw err;
+      try {
+        data = await fetchJson(path, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        nextCredentials = payload;
+        break;
+      } catch (err) {
+        lastError = err;
+        const message = String(err.message || '').toLowerCase();
+        const shouldTryAlternatePath = pathIndex < LOGIN_PATHS.length - 1
+          && (err.status === 404 || err.status === 405);
+        const shouldTryAlternateIdentifier = index < loginPayloads.length - 1
+          && (message.includes('user not found') || message.includes('not found') || err.status === 400);
+
+        if (shouldTryAlternatePath) {
+          continue;
+        }
+
+        if (!shouldTryAlternateIdentifier) {
+          throw err;
+        }
+
+        break;
       }
     }
+
+    if (data) break;
   }
 
-  if (!data?.token) {
+  const token = extractAuthToken(data);
+
+  if (!token) {
     if (lastError) {
       throw lastError;
     }
@@ -242,18 +288,18 @@ async function requestLogin(credentials, persistUser = true, includeSession = fa
   }
 
   if (persistUser) {
-    localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
     return storeAuthSession(data, nextCredentials);
   }
 
   if (includeSession) {
     return {
-      token: data.token,
+      token,
       user: buildUserSession(data, nextCredentials),
     };
   }
 
-  return data.token;
+  return token;
 }
 
 export async function getAuthToken(credentials) {
@@ -280,7 +326,7 @@ export async function register(credentials) {
   const nextCredentials = normalizeCredentials(credentials);
   const data = await registerAccount(nextCredentials);
 
-  if (data?.token) {
+  if (extractAuthToken(data)) {
     return storeAuthSession(data, nextCredentials);
   }
 

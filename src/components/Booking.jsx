@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { getAuthSession, registerAccount } from '../api/client.js';
+import { extractAuthToken, getAuthSession, registerAccount } from '../api/client.js';
 import { emailApi } from '../api/email.js';
 import { productInRequestApi, quoteRequestApi } from '../api/requests.js';
 import { toDateTimePayload, toTimePayload } from '../lib/datetime.js';
@@ -227,15 +227,6 @@ function getUserTenantId(user) {
     || null;
 }
 
-function getAuthTokenFromData(data) {
-  return data?.token
-    || data?.accessToken
-    || data?.jwt
-    || data?.user?.token
-    || data?.userDTO?.token
-    || null;
-}
-
 export function Booking({
   cart,
   dishes,
@@ -314,7 +305,7 @@ export function Booking({
 
         try {
           registeredAccount = await registerAccount(accountCredentials);
-          requestAuthToken = getAuthTokenFromData(registeredAccount) || requestAuthToken;
+          requestAuthToken = extractAuthToken(registeredAccount) || requestAuthToken;
           requestTenantId = getUserTenantId(registeredAccount) || requestTenantId;
           accountCreated = true;
         } catch (err) {
@@ -373,8 +364,13 @@ export function Booking({
       }
 
       const emailFailures = [];
+      const missingEmailAuthMessage = 'new account login did not return an authentication token';
 
       try {
+        if (!user && !requestAuthToken) {
+          throw new Error(missingEmailAuthMessage);
+        }
+
         const confirmationEmail = buildRequestConfirmationEmail({
           service,
           createdRequest,
@@ -402,6 +398,10 @@ export function Booking({
       }
 
       try {
+        if (!user && !requestAuthToken) {
+          throw new Error(missingEmailAuthMessage);
+        }
+
         const ownerNotificationEmail = buildOwnerRequestNotificationEmail({
           service,
           createdRequest,
