@@ -25,9 +25,32 @@ import { CLEANING_PRODUCT_TYPE, normalizeProduct } from './lib/products.js';
 import { TWEAK_DEFAULTS } from './lib/tweaks.js';
 import { useTweaks } from './use-tweaks.js';
 
+const ROUTES = {
+  '/': 'home',
+  '/catering': 'catering',
+  '/cleaning': 'cleaning',
+  '/about': 'about',
+  '/profile': 'profile',
+  '/admin': 'admin',
+};
+
+const PAGE_PATHS = {
+  home: '/',
+  catering: '/catering',
+  cleaning: '/cleaning',
+  about: '/about',
+  profile: '/profile',
+  admin: '/admin',
+};
+
+function getPageFromPath(pathname) {
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  return ROUTES[normalizedPath] || 'home';
+}
+
 export default function App() {
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [active, setActive] = useState('home');
+  const [active, setActive] = useState(() => getPageFromPath(window.location.pathname));
   const [cart, setCart] = useState({});
   const [toast, setToast] = useState(null);
   const [products, setProducts] = useState([]);
@@ -93,6 +116,18 @@ export default function App() {
     document.documentElement.style.setProperty('--pink-soft', tweaks.accentPink + '8c');
   }, [tweaks.accentPink, tweaks.accentBlue]);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setActive(getPageFromPath(window.location.pathname));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
   const addToCart = (d) => {
     setCart(c => ({...c, [d.id]: (c[d.id]||0) + 1}));
     setToast(`${d.name} added`);
@@ -100,7 +135,13 @@ export default function App() {
   };
   const clearCart = () => setCart({});
 
-  const navigateTo = (page) => {
+  const navigateTo = (page, { replace = false } = {}) => {
+    const path = PAGE_PATHS[page] || PAGE_PATHS.home;
+
+    if (window.location.pathname !== path) {
+      window.history[replace ? 'replaceState' : 'pushState']({}, '', path);
+    }
+
     setActive(page);
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -122,6 +163,12 @@ export default function App() {
   };
 
   const scrollToBook = (page = 'home') => {
+    const path = PAGE_PATHS[page] || PAGE_PATHS.home;
+
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+
     setActive(page);
     window.setTimeout(() => {
       const nextEl = document.getElementById('book');
@@ -222,7 +269,7 @@ export default function App() {
           onClose={() => setAuthOpen(false)}
           onAuthenticated={(nextUser) => {
             setUser(nextUser);
-            setActive(nextUser?.role === 'ADMIN' ? 'admin' : 'profile');
+            navigateTo(nextUser?.role === 'ADMIN' ? 'admin' : 'profile');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             setToast('Logged in');
             setTimeout(()=>setToast(null), 1800);

@@ -1,4 +1,9 @@
 export function Footer({ onNav }) {
+  const navigate = (event, page) => {
+    event.preventDefault();
+    onNav(page);
+  };
+
   return (
     <footer className="footer">
       <div className="footer-inner">
@@ -9,8 +14,8 @@ export function Footer({ onNav }) {
         <div>
           <h6>Services</h6>
           <ul>
-            <li>Catering</li>
-            <li>Cleaning</li>
+            <li><a className="footer-link" href="/catering" onClick={(event) => navigate(event, 'catering')}>Catering</a></li>
+            <li><a className="footer-link" href="/cleaning" onClick={(event) => navigate(event, 'cleaning')}>Cleaning</a></li>
             <li>Recurring plans</li>
             <li>Corporate</li>
           </ul>
@@ -18,7 +23,7 @@ export function Footer({ onNav }) {
         <div>
           <h6>Company</h6>
           <ul>
-            <li><button type="button" className="footer-link" onClick={() => onNav('about')}>About</button></li>
+            <li><a className="footer-link" href="/about" onClick={(event) => navigate(event, 'about')}>About</a></li>
             <li>Sustainability</li>
             <li>Press</li>
             <li>Careers</li>

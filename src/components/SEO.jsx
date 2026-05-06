@@ -6,6 +6,14 @@ const SITE_ALTERNATE_NAME = 'Morgendagens Maaltid';
 const DEFAULT_IMAGE = `${SITE_URL}/fistIcon.png`;
 const CONTACT_EMAIL = 'emil@morgendagensmaaltid.dk';
 const CONTACT_PHONE = '+45 27 82 88 67';
+const PAGE_PATHS = {
+  home: '/',
+  catering: '/catering',
+  cleaning: '/cleaning',
+  about: '/about',
+  profile: '/profile',
+  admin: '/admin',
+};
 
 const FAQ_ITEMS = [
   {
@@ -155,7 +163,7 @@ const serviceCatalogSchema = {
   itemListElement: [
     {
       '@type': 'Offer',
-      url: `${SITE_URL}/#catering`,
+      url: `${SITE_URL}/catering`,
       itemOffered: {
         '@type': 'Service',
         '@id': `${SITE_URL}/#catering-service`,
@@ -174,7 +182,7 @@ const serviceCatalogSchema = {
     },
     {
       '@type': 'Offer',
-      url: `${SITE_URL}/#cleaning`,
+      url: `${SITE_URL}/cleaning`,
       priceSpecification: {
         '@type': 'UnitPriceSpecification',
         price: '400',
@@ -215,7 +223,7 @@ const faqSchema = {
 };
 
 function getBreadcrumbSchema(pageKey, page) {
-  const pageUrl = pageKey === 'home' ? SITE_URL : `${SITE_URL}/#${pageKey}`;
+  const pageUrl = getPageUrl(pageKey);
   const pageName = pageKey === 'home' ? SITE_NAME : page.title.split('|')[0].trim();
 
   return {
@@ -237,6 +245,11 @@ function getBreadcrumbSchema(pageKey, page) {
       }]),
     ],
   };
+}
+
+function getPageUrl(pageKey) {
+  const path = PAGE_PATHS[pageKey] || PAGE_PATHS.home;
+  return path === '/' ? SITE_URL : `${SITE_URL}${path}`;
 }
 
 function setMeta(selector, attributes) {
@@ -279,7 +292,7 @@ function setJsonLd(id, schema) {
 }
 
 function getPageSchema(pageKey, page) {
-  const pageUrl = pageKey === 'home' ? SITE_URL : `${SITE_URL}/#${pageKey}`;
+  const pageUrl = getPageUrl(pageKey);
 
   return {
     '@context': 'https://schema.org',
@@ -300,7 +313,7 @@ export function SEO({ active = 'home' }) {
   useEffect(() => {
     const pageKey = SEO_CONTENT[active] ? active : 'home';
     const page = SEO_CONTENT[pageKey];
-    const pageUrl = pageKey === 'home' ? SITE_URL : `${SITE_URL}/#${pageKey}`;
+    const pageUrl = getPageUrl(pageKey);
     const robots = page.robots || 'index,follow';
 
     document.documentElement.lang = 'da-DK';
