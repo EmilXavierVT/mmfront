@@ -7,6 +7,7 @@ import { Calendar } from './Calendar.jsx';
 import { Icon } from './Icon.jsx';
 
 const BOOKING_USER_TEMP_PASSWORD = 'changeMe!';
+const OWNER_NOTIFICATION_EMAIL = 'emil@morgendagensmaaltid.dk';
 const EMAIL_LOGO_MARK = `
   <svg width="72" height="72" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Morgendagens Maaltid">
     <path d="M72.4649 18.1727C76.5256 13.0209 87.4918 21.9996 86.9431 27.2562C86.3626 32.8358 72.3693 49.9003 69.9676 56.4761C66.7596 59.2221 56.442 54.6803 56.7214 50.1616C56.8314 48.3859 70.926 20.1221 72.4634 18.1727H72.4649Z" fill="#FF1DFF"/>
@@ -135,6 +136,85 @@ function buildRequestConfirmationEmail({
   };
 }
 
+function buildOwnerRequestNotificationEmail({
+  service,
+  createdRequest,
+  requestEmail,
+  startDate,
+  startTime,
+  endDate,
+  endTime,
+  location,
+  zip,
+  guests,
+  selectedDishes,
+  cart,
+  allergies,
+}) {
+  const serviceName = service === 'cleaning' ? 'cleaning' : 'catering';
+  const requestId = createdRequest?.id ? `#${createdRequest.id}` : 'new request';
+  const requester = escapeHtml(requestEmail);
+  const detailRows = [
+    ['Requester', requester],
+    ['Service', escapeHtml(serviceName)],
+    ['Location', escapeHtml(location)],
+    ['Postcode', zip.trim() ? escapeHtml(zip.trim()) : 'Not provided'],
+    ['Start', formatDateTime(toDateTimePayload(startDate, startTime))],
+    ['End', formatDateTime(toDateTimePayload(endDate, endTime))],
+  ];
+  const sections = [];
+
+  if (service === 'catering') {
+    detailRows.push(['Guests', escapeHtml(guests)]);
+
+    if (selectedDishes.length > 0) {
+      sections.push(`
+        <h2 style="font-size:18px;margin:24px 0 12px;color:#111827;">Requested menu</h2>
+        <ul style="margin:0;padding-left:20px;color:#374151;">
+          ${selectedDishes.map(dish => `<li>${escapeHtml(dish.name)} x ${escapeHtml(cart[dish.id] || 0)}</li>`).join('')}
+        </ul>
+      `);
+    }
+
+    if (allergies.trim()) {
+      sections.push(`
+        <h2 style="font-size:18px;margin:24px 0 12px;color:#111827;">Allergies / dietary notes</h2>
+        <p style="margin:0;color:#374151;">${escapeHtml(allergies.trim())}</p>
+      `);
+    }
+  } else {
+    detailRows.push(['Rooms / size estimate', escapeHtml(guests)]);
+  }
+
+  return {
+    subject: `New ${serviceName} request from ${requestEmail}`,
+    body: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827;max-width:640px;margin:0 auto;background:#ffffff;">
+        <div style="background:#1A171B;padding:28px 24px;border-radius:18px 18px 0 0;text-align:center;">
+          <div style="display:inline-block;width:72px;height:72px;margin-bottom:14px;">${EMAIL_LOGO_MARK}</div>
+          <div style="font-size:13px;letter-spacing:1.8px;text-transform:uppercase;color:#EFEFEF;font-weight:700;">Morgendagens Maaltid</div>
+          <div style="width:72px;height:3px;background:#FF1DFF;margin:14px auto 0;border-radius:999px;"></div>
+        </div>
+        <div style="padding:24px;">
+          <h1 style="font-size:24px;margin:0 0 16px;color:#1A171B;">A request has been made by ${requester}</h1>
+          <p style="margin:0 0 24px;color:#374151;">Request ${escapeHtml(requestId)} is saved in the admin panel and ready for follow-up.</p>
+          <table style="width:100%;border-collapse:collapse;background:#f9fafb;border:1px solid #e5e7eb;">
+            <tbody>
+              ${detailRows.map(([label, value]) => `
+                <tr>
+                  <th style="text-align:left;padding:12px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:600;width:40%;">${label}</th>
+                  <td style="padding:12px;border-bottom:1px solid #e5e7eb;color:#111827;">${value}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ${sections.join('')}
+        </div>
+      </div>
+    `,
+  };
+}
+
 function getUserTenantId(user) {
   return user?.tenantId
     || user?.tenantDTO?.id
@@ -144,6 +224,15 @@ function getUserTenantId(user) {
     || user?.userDTO?.tenant?.id
     || user?.id
     || user?.userId
+    || null;
+}
+
+function getAuthTokenFromData(data) {
+  return data?.token
+    || data?.accessToken
+    || data?.jwt
+    || data?.user?.token
+    || data?.userDTO?.token
     || null;
 }
 
@@ -179,9 +268,18 @@ export function Booking({
   const cateringSubtotal = itemsTotal * guests;
   const cleaningHours = Math.max(2, Math.ceil(guests/2));
   const cleaningTotal = cleaningHours * 400;
+  const minimumGuests = service === 'catering' ? 15 : 1;
+
+  const updateService = (nextService) => {
+    setService(nextService);
+    if (nextService === 'catering') {
+      setGuests(currentGuests => Math.max(15, currentGuests));
+    }
+  };
+
   const updateGuests = (value) => {
     const nextGuests = Number(value);
-    setGuests(Number.isFinite(nextGuests) ? Math.max(15, Math.floor(nextGuests)) : 15);
+    setGuests(Number.isFinite(nextGuests) ? Math.max(minimumGuests, Math.floor(nextGuests)) : minimumGuests);
   };
 
   const submit = async (e) => {
@@ -216,6 +314,7 @@ export function Booking({
 
         try {
           registeredAccount = await registerAccount(accountCredentials);
+          requestAuthToken = getAuthTokenFromData(registeredAccount) || requestAuthToken;
           requestTenantId = getUserTenantId(registeredAccount) || requestTenantId;
           accountCreated = true;
         } catch (err) {
@@ -226,7 +325,7 @@ export function Booking({
 
         try {
           const authSession = await getAuthSession(accountCredentials);
-          requestAuthToken = authSession.token;
+          requestAuthToken = authSession.token || requestAuthToken;
           requestTenantId = getUserTenantId(authSession.user) || requestTenantId;
           if (accountCreated) {
             newAccountEmail = requestEmail;
@@ -236,8 +335,14 @@ export function Booking({
             ? `We created an account for ${requestEmail}. Temporary password: ${BOOKING_USER_TEMP_PASSWORD}`
             : `Request saved. Log in with ${requestEmail} to see it in your profile.`);
         } catch {
-          setAccountNotice(`Request saved. ${requestEmail} may already have an account, so log in to see it in your profile.`);
-          if (onRequireAuth) onRequireAuth(requestEmail);
+          if (accountCreated && requestAuthToken) {
+            newAccountEmail = requestEmail;
+            newAccountPassword = BOOKING_USER_TEMP_PASSWORD;
+            setAccountNotice(`We created an account for ${requestEmail}. Temporary password: ${BOOKING_USER_TEMP_PASSWORD}`);
+          } else {
+            setAccountNotice(`Request saved. ${requestEmail} may already have an account, so log in to see it in your profile.`);
+            if (onRequireAuth) onRequireAuth(requestEmail);
+          }
         }
       }
 
@@ -267,6 +372,8 @@ export function Booking({
         }, requestAuthToken)));
       }
 
+      const emailFailures = [];
+
       try {
         const confirmationEmail = buildRequestConfirmationEmail({
           service,
@@ -291,8 +398,38 @@ export function Booking({
           html: true,
         }, requestAuthToken);
       } catch (err) {
-        const message = err.message ? ` ${err.message}` : '';
-        setEmailNotice(`Request saved, but the confirmation email could not be sent.${message}`);
+        emailFailures.push(`confirmation email could not be sent${err.message ? `: ${err.message}` : ''}`);
+      }
+
+      try {
+        const ownerNotificationEmail = buildOwnerRequestNotificationEmail({
+          service,
+          createdRequest,
+          requestEmail,
+          startDate,
+          startTime,
+          endDate,
+          endTime,
+          location: location.trim(),
+          zip,
+          guests,
+          selectedDishes,
+          cart,
+          allergies,
+        });
+
+        await emailApi.send({
+          to: OWNER_NOTIFICATION_EMAIL,
+          subject: ownerNotificationEmail.subject,
+          body: ownerNotificationEmail.body,
+          html: true,
+        }, requestAuthToken);
+      } catch (err) {
+        emailFailures.push(`owner notification email could not be sent${err.message ? `: ${err.message}` : ''}`);
+      }
+
+      if (emailFailures.length > 0) {
+        setEmailNotice(`Request saved, but the ${emailFailures.join(' and the ')}.`);
       }
 
       setSubmitted(true);
@@ -320,8 +457,8 @@ export function Booking({
           <div className="field">
             <label>Service</label>
             <div className="segmented">
-              <button type="button" className={`seg ${service==='catering'?'active':''}`} onClick={()=>setService('catering')}>Catering</button>
-              <button type="button" className={`seg ${service==='cleaning'?'active':''}`} onClick={()=>setService('cleaning')}>Cleaning</button>
+              <button type="button" className={`seg ${service==='catering'?'active':''}`} onClick={()=>updateService('catering')}>Catering</button>
+              <button type="button" className={`seg ${service==='cleaning'?'active':''}`} onClick={()=>updateService('cleaning')}>Cleaning</button>
             </div>
           </div>
 
@@ -345,7 +482,7 @@ export function Booking({
                   <input
                     className="count"
                     type="number"
-                    min="15"
+                    min={minimumGuests}
                     step="1"
                     inputMode="numeric"
                     value={guests}
