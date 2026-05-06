@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { extractAuthToken, getAuthSession, registerAccount } from '../api/client.js';
+import { getAuthSession, registerAccount } from '../api/client.js';
 import { emailApi } from '../api/email.js';
 import { productInRequestApi, quoteRequestApi } from '../api/requests.js';
 import { toDateTimePayload, toTimePayload } from '../lib/datetime.js';
@@ -301,40 +301,35 @@ export function Booking({
           password: BOOKING_USER_TEMP_PASSWORD,
         };
         let accountCreated = false;
-        let registeredAccount = null;
 
         try {
-          registeredAccount = await registerAccount(accountCredentials);
-          requestAuthToken = extractAuthToken(registeredAccount) || requestAuthToken;
+          const registeredAccount = await registerAccount(accountCredentials);
           requestTenantId = getUserTenantId(registeredAccount) || requestTenantId;
           accountCreated = true;
         } catch (err) {
-          if (err.status !== 409) {
-            throw err;
+          if (err.status === 409) {
+            setAccountNotice(`${requestEmail} already has an account. Please log in before sending a new request.`);
+            if (onRequireAuth) onRequireAuth(requestEmail);
+            return;
           }
+
+          throw err;
         }
 
-        try {
-          const authSession = await getAuthSession(accountCredentials);
-          requestAuthToken = authSession.token || requestAuthToken;
-          requestTenantId = getUserTenantId(authSession.user) || requestTenantId;
-          if (accountCreated) {
-            newAccountEmail = requestEmail;
-            newAccountPassword = BOOKING_USER_TEMP_PASSWORD;
-          }
-          setAccountNotice(accountCreated
-            ? `We created an account for ${requestEmail}. Temporary password: ${BOOKING_USER_TEMP_PASSWORD}`
-            : `Request saved. Log in with ${requestEmail} to see it in your profile.`);
-        } catch {
-          if (accountCreated && requestAuthToken) {
-            newAccountEmail = requestEmail;
-            newAccountPassword = BOOKING_USER_TEMP_PASSWORD;
-            setAccountNotice(`We created an account for ${requestEmail}. Temporary password: ${BOOKING_USER_TEMP_PASSWORD}`);
-          } else {
-            setAccountNotice(`Request saved. ${requestEmail} may already have an account, so log in to see it in your profile.`);
-            if (onRequireAuth) onRequireAuth(requestEmail);
-          }
+        const authSession = await getAuthSession(accountCredentials);
+        requestAuthToken = authSession.token;
+        requestTenantId = getUserTenantId(authSession.user) || requestTenantId;
+
+        if (!requestAuthToken) {
+          throw new Error('Login response did not include an authentication token.');
         }
+
+        if (accountCreated) {
+          newAccountEmail = requestEmail;
+          newAccountPassword = BOOKING_USER_TEMP_PASSWORD;
+        }
+
+        setAccountNotice(`We created an account for ${requestEmail}. Temporary password: ${BOOKING_USER_TEMP_PASSWORD}`);
       }
 
       const startDateTime = toDateTimePayload(startDate, startTime);
