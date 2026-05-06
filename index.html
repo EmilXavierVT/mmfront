@@ -1,42 +1,58 @@
 <!doctype html>
-<html lang="en-DK">
+<html lang="da-DK">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Copenhagen catering, seasonal food, event menus, and eco-minded cleaning from Morgendagens Måltid. Book dinners, office lunches, weddings, and post-event help."
+      content="Morgendagens Måltid leverer catering, mad til events, selskabsmenuer og rengøring i København. Book middage, firmafrokost, bryllup og praktisk eventhjælp."
     />
     <meta
       name="keywords"
-      content="catering Copenhagen, food Copenhagen, event catering CPH, Copenhagen private chef, office lunch Copenhagen, Morgendagens Måltid"
+      content="Morgendagens Måltid, Morgendagens Maaltid, catering København, mad København, event catering Copenhagen, catering Copenhagen, firmafrokost København"
     />
     <meta name="robots" content="index,follow" />
     <meta name="theme-color" content="#1A171B" />
     <link rel="canonical" href="https://morgendagensmaaltid.dk" />
     <meta property="og:site_name" content="Morgendagens Måltid" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Catering & Food in Copenhagen | Morgendagens Måltid" />
+    <meta property="og:title" content="Morgendagens Måltid | Catering og Mad i København" />
     <meta
       property="og:description"
-      content="Seasonal catering, event food, office lunches, weddings, and practical post-event help in Copenhagen."
+      content="Catering, eventmad, firmafrokost, bryllupper og praktisk eventhjælp i København."
     />
     <meta property="og:url" content="https://morgendagensmaaltid.dk" />
     <meta property="og:image" content="https://morgendagensmaaltid.dk/fistIcon.png" />
-    <meta property="og:locale" content="en_DK" />
+    <meta property="og:locale" content="da_DK" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Catering & Food in Copenhagen | Morgendagens Måltid" />
+    <meta name="twitter:title" content="Morgendagens Måltid | Catering og Mad i København" />
     <meta
       name="twitter:description"
-      content="Seasonal catering, event food, office lunches, weddings, and practical post-event help in Copenhagen."
+      content="Catering, eventmad, firmafrokost, bryllupper og praktisk eventhjælp i København."
     />
     <meta name="twitter:image" content="https://morgendagensmaaltid.dk/fistIcon.png" />
+    <script type="application/ld+json" id="website-schema">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": "https://morgendagensmaaltid.dk/#website",
+        "name": "Morgendagens Måltid",
+        "alternateName": "Morgendagens Maaltid",
+        "url": "https://morgendagensmaaltid.dk",
+        "inLanguage": ["da-DK", "en-DK"],
+        "publisher": {
+          "@id": "https://morgendagensmaaltid.dk/#business"
+        }
+      }
+    </script>
     <script type="application/ld+json" id="local-business-schema">
       {
         "@context": "https://schema.org",
         "@type": ["LocalBusiness", "FoodService", "Caterer"],
+        "@id": "https://morgendagensmaaltid.dk/#business",
         "name": "Morgendagens Måltid",
+        "alternateName": "Morgendagens Maaltid",
         "url": "https://morgendagensmaaltid.dk",
         "image": "https://morgendagensmaaltid.dk/fistIcon.png",
         "logo": "https://morgendagensmaaltid.dk/fistIcon.png",
@@ -54,6 +70,17 @@
           { "@type": "AdministrativeArea", "name": "Greater Copenhagen" }
         ],
         "priceRange": "$$",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer service",
+          "email": "emil@morgendagensmaaltid.dk",
+          "telephone": "+45 27 82 88 67",
+          "areaServed": "DK",
+          "availableLanguage": ["Danish", "English"]
+        },
+        "hasOfferCatalog": {
+          "@id": "https://morgendagensmaaltid.dk/#services"
+        },
         "makesOffer": [
           {
             "@type": "Offer",
@@ -74,10 +101,132 @@
         ]
       }
     </script>
-    <title>Catering & Food in Copenhagen | Morgendagens Måltid</title>
+    <script type="application/ld+json" id="service-catalog-schema">
+      {
+        "@context": "https://schema.org",
+        "@type": "OfferCatalog",
+        "@id": "https://morgendagensmaaltid.dk/#services",
+        "name": "Morgendagens Måltid services",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "url": "https://morgendagensmaaltid.dk/#catering",
+            "itemOffered": {
+              "@type": "Service",
+              "@id": "https://morgendagensmaaltid.dk/#catering-service",
+              "name": "Catering i København",
+              "alternateName": "Catering in Copenhagen",
+              "serviceType": "Catering",
+              "provider": {
+                "@id": "https://morgendagensmaaltid.dk/#business"
+              },
+              "areaServed": {
+                "@type": "AdministrativeArea",
+                "name": "Greater Copenhagen"
+              },
+              "description": "Seasonal catering for dinners, offices, launches, weddings, and events in Copenhagen."
+            }
+          },
+          {
+            "@type": "Offer",
+            "url": "https://morgendagensmaaltid.dk/#cleaning",
+            "priceSpecification": {
+              "@type": "UnitPriceSpecification",
+              "price": "400",
+              "priceCurrency": "DKK",
+              "unitText": "hour"
+            },
+            "itemOffered": {
+              "@type": "Service",
+              "@id": "https://morgendagensmaaltid.dk/#cleaning-service",
+              "name": "Rengøring i København",
+              "alternateName": "Cleaning in Copenhagen",
+              "serviceType": "Cleaning",
+              "provider": {
+                "@id": "https://morgendagensmaaltid.dk/#business"
+              },
+              "areaServed": {
+                "@type": "AdministrativeArea",
+                "name": "Greater Copenhagen"
+              },
+              "description": "Eco-minded cleaning for homes, offices, move-outs, and post-event mornings in Copenhagen."
+            }
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json" id="faq-schema">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "@id": "https://morgendagensmaaltid.dk/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How far in advance should I book?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Catering: 7+ days for parties under 30, 3+ weeks for larger events. Cleaning: most weeks we have same-week availability for one-offs."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do you handle allergies and dietary restrictions?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Tell us in the form, and we build the menu around it. We are nut-free certified and run a separate gluten-free station."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do you bring your own equipment?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "For catering, yes: plates, glasses, cutlery, and serving staff if requested. For cleaning, all eco-certified products and tools come with the crew."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Where do you operate?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Greater Copenhagen and out to Roskilde. Travel is included for the first 25km from Copenhagen city centre."
+            }
+          }
+        ]
+      }
+    </script>
+    <script type="application/ld+json" id="breadcrumb-schema">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "@id": "https://morgendagensmaaltid.dk/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Morgendagens Måltid",
+            "item": "https://morgendagensmaaltid.dk"
+          }
+        ]
+      }
+    </script>
+    <title>Morgendagens Måltid | Catering og Mad i København</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main>
+        <h1>Morgendagens Måltid</h1>
+        <p>
+          Morgendagens Måltid, also written Morgendagens Maaltid, offers catering,
+          event food, office lunch, wedding menus, and practical cleaning support in Copenhagen.
+        </p>
+        <p>
+          Contact: emil@morgendagensmaaltid.dk · +45 27 82 88 67 · Bremmensgade 10,
+          2300 København S.
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

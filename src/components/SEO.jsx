@@ -2,36 +2,62 @@ import { useEffect } from 'react';
 
 const SITE_URL = 'https://morgendagensmaaltid.dk';
 const SITE_NAME = 'Morgendagens Måltid';
+const SITE_ALTERNATE_NAME = 'Morgendagens Maaltid';
 const DEFAULT_IMAGE = `${SITE_URL}/fistIcon.png`;
+const CONTACT_EMAIL = 'emil@morgendagensmaaltid.dk';
+const CONTACT_PHONE = '+45 27 82 88 67';
+
+const FAQ_ITEMS = [
+  {
+    question: 'How far in advance should I book?',
+    answer: 'Catering: 7+ days for parties under 30, 3+ weeks for larger events. Cleaning: most weeks we have same-week availability for one-offs.',
+  },
+  {
+    question: 'Do you handle allergies and dietary restrictions?',
+    answer: 'Yes. Tell us in the form, and we build the menu around it. We are nut-free certified and run a separate gluten-free station.',
+  },
+  {
+    question: 'What is your cancellation policy?',
+    answer: 'Full refund up to 7 days before. 50% within 7 days. Within 48 hours we keep the deposit but can rebook you within 90 days at no charge.',
+  },
+  {
+    question: 'Do you bring your own equipment?',
+    answer: 'For catering, yes: plates, glasses, cutlery, and serving staff if requested. For cleaning, all eco-certified products and tools come with the crew.',
+  },
+  {
+    question: 'Where do you operate?',
+    answer: 'Greater Copenhagen and out to Roskilde. Travel is included for the first 25km from Copenhagen city centre.',
+  },
+];
 
 const SEO_CONTENT = {
   home: {
-    title: 'Catering & Food in Copenhagen | Morgendagens Måltid',
+    title: 'Morgendagens Måltid | Catering og Mad i København',
     description:
-      'Copenhagen catering, seasonal food, event menus, and eco-minded cleaning from Morgendagens Måltid. Book dinners, office lunches, weddings, and post-event help.',
+      'Morgendagens Måltid leverer catering, mad til events, selskabsmenuer og rengøring i København. Book middage, firmafrokost, bryllup og praktisk eventhjælp.',
     keywords:
-      'catering Copenhagen, food Copenhagen, event catering CPH, Copenhagen private chef, office lunch Copenhagen, Morgendagens Måltid',
+      'Morgendagens Måltid, Morgendagens Maaltid, catering København, mad København, event catering Copenhagen, catering Copenhagen, firmafrokost København',
   },
   catering: {
-    title: 'Catering in Copenhagen | Seasonal Event Menus',
+    title: 'Catering i København | Morgendagens Måltid',
     description:
-      'Catering in Copenhagen for dinner parties, offices, launches, weddings, and big moments. Seasonal menus, allergy-aware planning, and fast human quotes.',
+      'Catering i København til middagsselskaber, kontorer, lanceringer, bryllupper og store øjeblikke. Sæsonmenuer, allergihensyn og hurtige tilbud.',
     keywords:
-      'catering Copenhagen, event catering Copenhagen, wedding catering Copenhagen, office catering CPH, private dinner Copenhagen',
+      'Morgendagens Måltid catering, catering København, event catering København, bryllup catering København, firmafrokost København, private dinner Copenhagen',
   },
   cleaning: {
-    title: 'Eco Cleaning in Copenhagen | Morgendagens Måltid',
+    title: 'Rengøring i København | Morgendagens Måltid',
     description:
-      'Eco-minded cleaning in Copenhagen for homes, offices, move-outs, and post-event mornings. Vetted crews, clear quotes, and own products.',
+      'Rengøring i København til hjem, kontorer, flytninger og morgenen efter events. Klare tilbud, egne produkter og praktisk hjælp.',
     keywords:
-      'cleaning Copenhagen, eco cleaning Copenhagen, post-event cleaning Copenhagen, home cleaning CPH',
+      'Morgendagens Måltid rengøring, rengøring København, eco cleaning Copenhagen, post-event cleaning Copenhagen, home cleaning CPH',
   },
   about: {
-    title: 'About Morgendagens Måltid | Copenhagen Catering & Cleaning',
+    title: 'Om Morgendagens Måltid | Catering og Rengøring',
     description:
-      'Morgendagens Måltid is a Copenhagen service company for seasonal catering, food, cleaning, and practical event support.',
+      'Morgendagens Måltid er et københavnsk servicefirma for sæsonbaseret catering, mad, rengøring og praktisk eventhjælp.',
     keywords:
-      'Morgendagens Måltid, Copenhagen catering company, catering and cleaning Copenhagen, food service Copenhagen',
+      'Morgendagens Måltid, Morgendagens Maaltid, cateringfirma København, catering og rengøring København, food service Copenhagen',
   },
   profile: {
     title: 'Profile | Morgendagens Måltid',
@@ -51,11 +77,13 @@ const baseLocalBusinessSchema = {
   '@context': 'https://schema.org',
   '@type': ['LocalBusiness', 'FoodService', 'Caterer'],
   name: SITE_NAME,
+  alternateName: SITE_ALTERNATE_NAME,
   url: SITE_URL,
+  '@id': `${SITE_URL}/#business`,
   image: DEFAULT_IMAGE,
   logo: DEFAULT_IMAGE,
-  email: 'emil@morgendagensmaaltid.dk',
-  telephone: '+45 27 82 88 67',
+  email: CONTACT_EMAIL,
+  telephone: CONTACT_PHONE,
   address: {
     '@type': 'PostalAddress',
     streetAddress: 'Bremmensgade 10',
@@ -75,6 +103,17 @@ const baseLocalBusinessSchema = {
   ],
   priceRange: '$$',
   sameAs: [],
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer service',
+    email: CONTACT_EMAIL,
+    telephone: CONTACT_PHONE,
+    areaServed: 'DK',
+    availableLanguage: ['Danish', 'English'],
+  },
+  hasOfferCatalog: {
+    '@id': `${SITE_URL}/#services`,
+  },
   makesOffer: [
     {
       '@type': 'Offer',
@@ -94,6 +133,111 @@ const baseLocalBusinessSchema = {
     },
   ],
 };
+
+const webSiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': `${SITE_URL}/#website`,
+  name: SITE_NAME,
+  alternateName: SITE_ALTERNATE_NAME,
+  url: SITE_URL,
+  inLanguage: ['da-DK', 'en-DK'],
+  publisher: {
+    '@id': `${SITE_URL}/#business`,
+  },
+};
+
+const serviceCatalogSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'OfferCatalog',
+  '@id': `${SITE_URL}/#services`,
+  name: 'Morgendagens Måltid services',
+  itemListElement: [
+    {
+      '@type': 'Offer',
+      url: `${SITE_URL}/#catering`,
+      itemOffered: {
+        '@type': 'Service',
+        '@id': `${SITE_URL}/#catering-service`,
+        name: 'Catering i København',
+        alternateName: 'Catering in Copenhagen',
+        serviceType: 'Catering',
+        provider: {
+          '@id': `${SITE_URL}/#business`,
+        },
+        areaServed: {
+          '@type': 'AdministrativeArea',
+          name: 'Greater Copenhagen',
+        },
+        description: 'Seasonal catering for dinners, offices, launches, weddings, and events in Copenhagen.',
+      },
+    },
+    {
+      '@type': 'Offer',
+      url: `${SITE_URL}/#cleaning`,
+      priceSpecification: {
+        '@type': 'UnitPriceSpecification',
+        price: '400',
+        priceCurrency: 'DKK',
+        unitText: 'hour',
+      },
+      itemOffered: {
+        '@type': 'Service',
+        '@id': `${SITE_URL}/#cleaning-service`,
+        name: 'Rengøring i København',
+        alternateName: 'Cleaning in Copenhagen',
+        serviceType: 'Cleaning',
+        provider: {
+          '@id': `${SITE_URL}/#business`,
+        },
+        areaServed: {
+          '@type': 'AdministrativeArea',
+          name: 'Greater Copenhagen',
+        },
+        description: 'Eco-minded cleaning for homes, offices, move-outs, and post-event mornings in Copenhagen.',
+      },
+    },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  '@id': `${SITE_URL}/#faq`,
+  mainEntity: FAQ_ITEMS.map(item => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.answer,
+    },
+  })),
+};
+
+function getBreadcrumbSchema(pageKey, page) {
+  const pageUrl = pageKey === 'home' ? SITE_URL : `${SITE_URL}/#${pageKey}`;
+  const pageName = pageKey === 'home' ? SITE_NAME : page.title.split('|')[0].trim();
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    '@id': `${pageUrl}#breadcrumb`,
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: SITE_NAME,
+        item: SITE_URL,
+      },
+      ...(pageKey === 'home' ? [] : [{
+        '@type': 'ListItem',
+        position: 2,
+        name: pageName,
+        item: pageUrl,
+      }]),
+    ],
+  };
+}
 
 function setMeta(selector, attributes) {
   let tag = document.head.querySelector(selector);
@@ -144,13 +288,10 @@ function getPageSchema(pageKey, page) {
     description: page.description,
     url: pageUrl,
     isPartOf: {
-      '@type': 'WebSite',
-      name: SITE_NAME,
-      url: SITE_URL,
+      '@id': `${SITE_URL}/#website`,
     },
     about: {
-      '@type': 'LocalBusiness',
-      name: SITE_NAME,
+      '@id': `${SITE_URL}/#business`,
     },
   };
 }
@@ -162,7 +303,7 @@ export function SEO({ active = 'home' }) {
     const pageUrl = pageKey === 'home' ? SITE_URL : `${SITE_URL}/#${pageKey}`;
     const robots = page.robots || 'index,follow';
 
-    document.documentElement.lang = 'en-DK';
+    document.documentElement.lang = 'da-DK';
     document.title = page.title;
 
     setMeta('meta[name="description"]', { name: 'description', content: page.description });
@@ -176,7 +317,7 @@ export function SEO({ active = 'home' }) {
     setMeta('meta[property="og:description"]', { property: 'og:description', content: page.description });
     setMeta('meta[property="og:url"]', { property: 'og:url', content: pageUrl });
     setMeta('meta[property="og:image"]', { property: 'og:image', content: DEFAULT_IMAGE });
-    setMeta('meta[property="og:locale"]', { property: 'og:locale', content: 'en_DK' });
+    setMeta('meta[property="og:locale"]', { property: 'og:locale', content: 'da_DK' });
 
     setMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
     setMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: page.title });
@@ -184,7 +325,11 @@ export function SEO({ active = 'home' }) {
     setMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: DEFAULT_IMAGE });
 
     setLink('link[rel="canonical"]', { rel: 'canonical', href: pageUrl });
+    setJsonLd('website-schema', webSiteSchema);
     setJsonLd('local-business-schema', baseLocalBusinessSchema);
+    setJsonLd('service-catalog-schema', serviceCatalogSchema);
+    setJsonLd('faq-schema', faqSchema);
+    setJsonLd('breadcrumb-schema', getBreadcrumbSchema(pageKey, page));
     setJsonLd('page-schema', getPageSchema(pageKey, page));
   }, [active]);
 
