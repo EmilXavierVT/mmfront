@@ -1,26 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 import { getStoredUser, logout } from './api/client.js';
 import { productApi } from './api/products.js';
-import { AuthModal } from './components/AuthModal.jsx';
-import { About } from './components/About.jsx';
-import { Admin } from './components/Admin.jsx';
-import { BigCTA } from './components/BigCTA.jsx';
-import { Booking } from './components/Booking.jsx';
-import { Catering } from './components/Catering.jsx';
-import { Cleaning } from './components/Cleaning.jsx';
-import { FAQ } from './components/FAQ.jsx';
-import { Footer } from './components/Footer.jsx';
-import { Hero } from './components/Hero.jsx';
-import { Menu } from './components/Menu.jsx';
-import { Profile } from './components/Profile.jsx';
-import { SEO } from './components/SEO.jsx';
-import { SplitService } from './components/SplitService.jsx';
-import { Steps } from './components/Steps.jsx';
-import { Testimonials } from './components/Testimonials.jsx';
-import { Topbar } from './components/Topbar.jsx';
-import { Trust } from './components/Trust.jsx';
-import { TweaksUI } from './components/TweaksUI.jsx';
+import { AuthModal } from './components/Auth/AuthModal.jsx';
+import { About } from './components/Marketing/About.jsx';
+import { Admin } from './components/Admin/Admin.jsx';
+import { BigCTA } from './components/Marketing/BigCTA.jsx';
+import { Booking } from './components/Booking/Booking.jsx';
+import { Catering } from './components/Services/Catering.jsx';
+import { Cleaning } from './components/Services/Cleaning.jsx';
+import { FAQ } from './components/Marketing/FAQ.jsx';
+import { Footer } from './components/Layout/Footer.jsx';
+import { Hero } from './components/Marketing/Hero.jsx';
+import { Menu } from './components/Services/Menu.jsx';
+import { Profile } from './components/Profile/Profile.jsx';
+import { SEO } from './components/Layout/SEO.jsx';
+import { SplitService } from './components/Services/SplitService.jsx';
+import { Steps } from './components/Marketing/Steps.jsx';
+import { Testimonials } from './components/Marketing/Testimonials.jsx';
+import { Topbar } from './components/Layout/Topbar.jsx';
+import { Trust } from './components/Marketing/Trust.jsx';
+import { TweaksUI } from './components/TweaksUI/TweaksUI.jsx';
 import { CLEANING_PRODUCT_TYPE, normalizeProduct } from './lib/products.js';
 import { TWEAK_DEFAULTS } from './lib/tweaks.js';
 import { useTweaks } from './use-tweaks.js';
@@ -43,14 +44,169 @@ const PAGE_PATHS = {
   admin: '/admin',
 };
 
+function Page({ children }) {
+  return <div className="page">{children}</div>;
+}
+
+function AdminPage({
+  isAdmin,
+  user,
+  products,
+  productsLoading,
+  productsError,
+  onLogout,
+  onProductsChanged,
+}) {
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <Page>
+      <Admin
+        user={user}
+        products={products}
+        productsLoading={productsLoading}
+        productsError={productsError}
+        onLogout={onLogout}
+        onProductsChanged={onProductsChanged}
+      />
+    </Page>
+  );
+}
+
+function ProfilePage({ user, onBook, onLogout }) {
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <Page>
+      <Profile user={user} onBook={onBook} onLogout={onLogout} />
+    </Page>
+  );
+}
+
+function AboutPage({ onBook }) {
+  return (
+    <Page>
+      <About onBook={onBook} />
+    </Page>
+  );
+}
+
+function CateringPage({
+  cart,
+  products,
+  loading,
+  error,
+  user,
+  onAdd,
+  onRetry,
+  onClearCart,
+  onBook,
+  onRequireAuth,
+}) {
+  return (
+    <Page>
+      <Catering
+        cart={cart}
+        dishes={products}
+        products={products}
+        loading={loading}
+        error={error}
+        user={user}
+        onAdd={onAdd}
+        onRetry={onRetry}
+        onClearCart={onClearCart}
+        onBook={onBook}
+        onRequireAuth={onRequireAuth}
+      />
+    </Page>
+  );
+}
+
+function CleaningPage({
+  products,
+  loading,
+  error,
+  user,
+  onRetry,
+  onClearCart,
+  onBook,
+  onRequireAuth,
+}) {
+  return (
+    <Page>
+      <Cleaning
+        products={products}
+        loading={loading}
+        error={error}
+        user={user}
+        onRetry={onRetry}
+        onClearCart={onClearCart}
+        onBook={onBook}
+        onRequireAuth={onRequireAuth}
+      />
+    </Page>
+  );
+}
+
+function HomePage({
+  tweaks,
+  cart,
+  products,
+  loading,
+  error,
+  user,
+  onAdd,
+  onRetry,
+  onClearCart,
+  onBook,
+  onRequireAuth,
+}) {
+  return (
+    <Page>
+      <Hero tweaks={tweaks} onBook={onBook} />
+      {tweaks.showTrust && <Trust />}
+      <SplitService onBook={onBook} />
+      <Steps />
+      <Menu
+        cart={cart}
+        products={products}
+        loading={loading}
+        error={error}
+        onAdd={onAdd}
+        onRetry={onRetry}
+      />
+      <Booking
+        cart={cart}
+        dishes={products}
+        user={user}
+        onClearCart={onClearCart}
+        onRequireAuth={onRequireAuth}
+      />
+      <Testimonials />
+      <FAQ />
+      <BigCTA onBook={() => onBook()} />
+    </Page>
+  );
+}
+
 function getPageFromPath(pathname) {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
   return ROUTES[normalizedPath] || 'home';
 }
 
+function normalizeProductsResponse(data) {
+  return (Array.isArray(data) ? data : []).map(normalizeProduct);
+}
+
 export default function App() {
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [active, setActive] = useState(() => getPageFromPath(window.location.pathname));
+  const location = useLocation();
+  const routerNavigate = useNavigate();
+  const active = getPageFromPath(location.pathname);
   const [cart, setCart] = useState({});
   const [toast, setToast] = useState(null);
   const [products, setProducts] = useState([]);
@@ -60,6 +216,8 @@ export default function App() {
   const [authInitialEmail, setAuthInitialEmail] = useState('');
   const [authInitialMode, setAuthInitialMode] = useState('login');
   const [user, setUser] = useState(() => getStoredUser());
+  const toastTimeoutRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
   const cateringProducts = useMemo(
     () => products.filter((product) => Number(product.type) !== CLEANING_PRODUCT_TYPE),
     [products],
@@ -70,27 +228,29 @@ export default function App() {
   );
   const isAdmin = user?.role === 'ADMIN';
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     setProductsLoading(true);
     setProductsError('');
     try {
       const data = await productApi.getAll();
-      setProducts((Array.isArray(data) ? data : []).map(normalizeProduct));
+      setProducts(normalizeProductsResponse(data));
     } catch (err) {
       setProductsError(err.message || 'Could not load products.');
     } finally {
       setProductsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     let ignore = false;
 
-    async function loadInitialProducts() {
+    async function initializeProducts() {
+      setProductsLoading(true);
+      setProductsError('');
       try {
         const data = await productApi.getAll();
         if (!ignore) {
-          setProducts((Array.isArray(data) ? data : []).map(normalizeProduct));
+          setProducts(normalizeProductsResponse(data));
         }
       } catch (err) {
         if (!ignore) {
@@ -103,7 +263,7 @@ export default function App() {
       }
     }
 
-    loadInitialProducts();
+    initializeProducts();
 
     return () => {
       ignore = true;
@@ -117,43 +277,50 @@ export default function App() {
   }, [tweaks.accentPink, tweaks.accentBlue]);
 
   useEffect(() => {
-    const handlePopState = () => {
-      setActive(getPageFromPath(window.location.pathname));
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      if (toastTimeoutRef.current) {
+        window.clearTimeout(toastTimeoutRef.current);
+      }
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
     };
   }, []);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
+
+  const showToast = useCallback((message) => {
+    setToast(message);
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimeoutRef.current = null;
+    }, 1800);
+  }, []);
+
   const addToCart = (d) => {
-    setCart(c => ({...c, [d.id]: (c[d.id]||0) + 1}));
-    setToast(`${d.name} added`);
-    setTimeout(()=>setToast(null), 1800);
+    setCart((c) => ({ ...c, [d.id]: (c[d.id] || 0) + 1 }));
+    showToast(`${d.name} added`);
   };
   const clearCart = () => setCart({});
 
   const navigateTo = (page, { replace = false } = {}) => {
     const path = PAGE_PATHS[page] || PAGE_PATHS.home;
 
-    if (window.location.pathname !== path) {
-      window.history[replace ? 'replaceState' : 'pushState']({}, '', path);
+    if (location.pathname !== path) {
+      routerNavigate(path, { replace });
     }
-
-    setActive(page);
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
   };
 
   const handleLogout = () => {
     logout();
     setUser(null);
     navigateTo('home');
-    setToast('Logged out');
-    setTimeout(()=>setToast(null), 1800);
+    showToast('Logged out');
   };
 
   const openAuth = (initialEmail = '', initialMode = 'login') => {
@@ -165,14 +332,18 @@ export default function App() {
   const scrollToBook = (page = 'home') => {
     const path = PAGE_PATHS[page] || PAGE_PATHS.home;
 
-    if (window.location.pathname !== path) {
-      window.history.pushState({}, '', path);
+    if (location.pathname !== path) {
+      routerNavigate(path);
     }
 
-    setActive(page);
-    window.setTimeout(() => {
+    if (scrollTimeoutRef.current) {
+      window.clearTimeout(scrollTimeoutRef.current);
+    }
+
+    scrollTimeoutRef.current = window.setTimeout(() => {
       const nextEl = document.getElementById('book');
       if (nextEl) window.scrollTo({ top: nextEl.offsetTop - 80, behavior: 'smooth' });
+      scrollTimeoutRef.current = null;
     }, 0);
   };
 
@@ -180,88 +351,95 @@ export default function App() {
     <>
       <SEO active={active} />
       <Topbar
-        active={active}
-        onNav={navigateTo}
         user={user}
         isAdmin={isAdmin}
         onAccount={() => openAuth()}
       />
-      {active === 'admin' && isAdmin ? (
-        <div className="page">
-          <Admin
-            user={user}
-            products={products}
-            productsLoading={productsLoading}
-            productsError={productsError}
-            onLogout={handleLogout}
-            onProductsChanged={loadProducts}
-          />
-        </div>
-      ) : active === 'profile' && user ? (
-        <div className="page">
-          <Profile user={user} onBook={scrollToBook} onLogout={handleLogout} />
-        </div>
-      ) : active === 'about' ? (
-        <div className="page">
-          <About onBook={scrollToBook} />
-        </div>
-      ) : active === 'catering' ? (
-        <div className="page">
-          <Catering
-            cart={cart}
-            dishes={cateringProducts}
-            products={cateringProducts}
-            loading={productsLoading}
-            error={productsError}
-            user={user}
-            onAdd={addToCart}
-            onRetry={loadProducts}
-            onClearCart={clearCart}
-            onBook={() => scrollToBook('catering')}
-            onRequireAuth={(email) => openAuth(email)}
-          />
-        </div>
-      ) : active === 'cleaning' ? (
-        <div className="page">
-          <Cleaning
-            products={cleaningProducts}
-            loading={productsLoading}
-            error={productsError}
-            user={user}
-            onRetry={loadProducts}
-            onClearCart={clearCart}
-            onBook={() => scrollToBook('cleaning')}
-            onRequireAuth={(email) => openAuth(email)}
-          />
-        </div>
-      ) : (
-        <div className="page">
-          <Hero tweaks={tweaks} onBook={(service)=>scrollToBook(service === 'cleaning' ? 'cleaning' : service === 'catering' ? 'catering' : 'home')} />
-          {tweaks.showTrust && <Trust/>}
-          <SplitService onBook={(service)=>scrollToBook(service === 'cleaning' ? 'cleaning' : 'catering')}/>
-          <Steps/>
-          <Menu
-            cart={cart}
-            products={cateringProducts}
-            loading={productsLoading}
-            error={productsError}
-            onAdd={addToCart}
-            onRetry={loadProducts}
-          />
-          <Booking
-            cart={cart}
-            dishes={cateringProducts}
-            user={user}
-            onClearCart={clearCart}
-            onRequireAuth={(email) => openAuth(email)}
-          />
-          <Testimonials/>
-          <FAQ/>
-          <BigCTA onBook={()=>scrollToBook()}/>
-        </div>
-      )}
-      <Footer onNav={navigateTo}/>
-      <TweaksUI tweaks={tweaks} setTweak={setTweak}/>
+      <Routes>
+        <Route
+          path="/admin"
+          element={(
+            <AdminPage
+              isAdmin={isAdmin}
+              user={user}
+              products={products}
+              productsLoading={productsLoading}
+              productsError={productsError}
+              onLogout={handleLogout}
+              onProductsChanged={loadProducts}
+            />
+          )}
+        />
+        <Route
+          path="/profile"
+          element={<ProfilePage user={user} onBook={scrollToBook} onLogout={handleLogout} />}
+        />
+        <Route
+          path="/about"
+          element={<AboutPage onBook={scrollToBook} />}
+        />
+        <Route
+          path="/catering"
+          element={(
+            <CateringPage
+              cart={cart}
+              products={cateringProducts}
+              loading={productsLoading}
+              error={productsError}
+              user={user}
+              onAdd={addToCart}
+              onRetry={loadProducts}
+              onClearCart={clearCart}
+              onBook={() => scrollToBook('catering')}
+              onRequireAuth={(email) => openAuth(email)}
+            />
+          )}
+        />
+        <Route
+          path="/cleaning"
+          element={(
+            <CleaningPage
+              products={cleaningProducts}
+              loading={productsLoading}
+              error={productsError}
+              user={user}
+              onRetry={loadProducts}
+              onClearCart={clearCart}
+              onBook={() => scrollToBook('cleaning')}
+              onRequireAuth={(email) => openAuth(email)}
+            />
+          )}
+        />
+        <Route
+          path="/"
+          element={(
+            <HomePage
+              tweaks={tweaks}
+              cart={cart}
+              products={cateringProducts}
+              loading={productsLoading}
+              error={productsError}
+              user={user}
+              onAdd={addToCart}
+              onRetry={loadProducts}
+              onClearCart={clearCart}
+              onBook={(service) =>
+                scrollToBook(
+                  service === 'cleaning'
+                    ? 'cleaning'
+                    : service === 'catering'
+                      ? 'catering'
+                      : 'home',
+                )
+              }
+              onRequireAuth={(email) => openAuth(email)}
+            />
+          )}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Footer onNav={navigateTo} />
+      <TweaksUI tweaks={tweaks} setTweak={setTweak} />
       {authOpen && (
         <AuthModal
           initialEmail={authInitialEmail}
@@ -271,12 +449,11 @@ export default function App() {
             setUser(nextUser);
             navigateTo(nextUser?.role === 'ADMIN' ? 'admin' : 'profile');
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            setToast('Logged in');
-            setTimeout(()=>setToast(null), 1800);
+            showToast('Logged in');
           }}
         />
       )}
-      <div className={`toast ${toast?'show':''}`}>{toast}</div>
+      <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </>
   );
 }

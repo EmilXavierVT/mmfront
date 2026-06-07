@@ -3,9 +3,11 @@ dist
 .git
 .github
 .DS_Store
+.env
 npm-debug.log*
 Dockerfile
 docker-compose.yml
 src/assets/*.jpg
 src/assets/*.jpeg
 src/assets/*.JPG
+exam

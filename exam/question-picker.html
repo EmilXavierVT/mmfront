@@ -1,0 +1,1419 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exam Question Picker</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7fb;
+        --panel: #ffffff;
+        --panel-soft: #eef2ff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #d1d5db;
+        --accent: #2563eb;
+        --accent-soft: #dbeafe;
+        --success: #065f46;
+        --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, Arial, Helvetica, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .shell {
+        width: min(1200px, calc(100% - 32px));
+        margin: 24px auto 48px;
+      }
+
+      .hero,
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        padding: 24px;
+        margin-bottom: 20px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+      }
+
+      .hero p,
+      .muted {
+        color: var(--muted);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 380px minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 14px 0 18px;
+      }
+
+      button {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      button.secondary {
+        background: var(--panel-soft);
+        border-color: #c7d2fe;
+      }
+
+      .category {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .category[data-collapsed="true"] .question-list {
+        display: none;
+      }
+
+      #question-panel {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+      }
+
+      .category-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .category[data-collapsed="false"] .category-head {
+        margin-bottom: 12px;
+      }
+
+      .category-title {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        text-align: left;
+      }
+
+      .category-toggle {
+        color: var(--accent);
+        font-size: 14px;
+        line-height: 1.3;
+        transform: translateY(2px);
+      }
+
+      .category[data-collapsed="true"] .category-toggle {
+        transform: translateY(2px) rotate(-90deg);
+      }
+
+      .question-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      label.question {
+        display: block;
+        position: relative;
+        align-items: start;
+        padding: 10px;
+        border-radius: 10px;
+        background: #fafafa;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+      }
+
+      label.question:hover {
+        background: #f5f7fb;
+      }
+
+      label.question.is-selected {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+      }
+
+      label.question input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      label.question span {
+        display: block;
+      }
+
+      .output-empty {
+        padding: 24px;
+        border: 1px dashed var(--border);
+        border-radius: 14px;
+        color: var(--muted);
+        background: #fcfcfd;
+      }
+
+      .summary {
+        background: var(--panel-soft);
+        border: 1px solid #c7d2fe;
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .slide-deck {
+        display: grid;
+        gap: 18px;
+      }
+
+      .slide {
+        --slide-accent: var(--accent);
+        --slide-soft: var(--panel-soft);
+        --slide-border: #bfdbfe;
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        padding: 24px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        box-shadow: var(--shadow);
+        min-height: 540px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .slide + .slide {
+        page-break-before: always;
+      }
+
+      .slide-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 18px;
+      }
+
+      .slide::before {
+        content: '';
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 8px;
+        background: linear-gradient(90deg, var(--slide-accent), transparent 70%);
+      }
+
+      .slide-number {
+        flex-shrink: 0;
+        min-width: 56px;
+        text-align: center;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: var(--slide-soft);
+        color: var(--slide-accent);
+        font-weight: 700;
+      }
+
+      .slide-question {
+        font-size: clamp(24px, 3vw, 36px);
+        line-height: 1.15;
+        margin-top: 4px;
+      }
+
+      .slide-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+
+      .slide-main {
+        display: grid;
+        gap: 16px;
+      }
+
+      .slide-card {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 18px;
+        background: #fcfcff;
+      }
+
+      .slide-card.accent {
+        background: linear-gradient(180deg, var(--slide-soft) 0%, #ffffff 100%);
+        border-color: var(--slide-border);
+      }
+
+      .slide-card h4 {
+        margin: 0 0 10px;
+        font-size: 15px;
+      }
+
+      .slide-card p {
+        margin: 0;
+        line-height: 1.6;
+      }
+
+      .slide-card p + p {
+        margin-top: 10px;
+      }
+
+      .eyebrow {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--slide-accent, var(--accent));
+        margin-bottom: 8px;
+      }
+
+      .theme-overview {
+        --slide-accent: #2563eb;
+        --slide-soft: #dbeafe;
+        --slide-border: #93c5fd;
+      }
+
+      .theme-javascript {
+        --slide-accent: #b45309;
+        --slide-soft: #fef3c7;
+        --slide-border: #f59e0b;
+        background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+      }
+
+      .theme-react {
+        --slide-accent: #0891b2;
+        --slide-soft: #cffafe;
+        --slide-border: #67e8f9;
+        background: linear-gradient(180deg, #ecfeff 0%, #ffffff 100%);
+      }
+
+      .theme-router {
+        --slide-accent: #7c3aed;
+        --slide-soft: #ede9fe;
+        --slide-border: #c4b5fd;
+        background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
+      }
+
+      .refs {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .slide-card.refs {
+        margin-top: 0;
+      }
+
+      .ref-list {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .ref-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--panel-soft);
+        border-color: #c7d2fe;
+        color: var(--accent);
+        font-size: 13px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
+      }
+
+      .ref-button[aria-expanded="true"] {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      .snippet-viewer {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #0f172a;
+        color: #e5e7eb;
+      }
+
+      .snippet-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        background: #111827;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 13px;
+      }
+
+      .snippet-header code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+      }
+
+      .snippet-code {
+        margin: 0;
+        padding: 14px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
+        background: #0f172a;
+        color: #e5e7eb;
+      }
+
+      .snippet-code code {
+        display: block;
+        background: transparent !important;
+        color: inherit !important;
+        padding: 0;
+        border-radius: 0;
+        white-space: normal;
+        box-shadow: none;
+      }
+
+      .snippet-line {
+        display: grid;
+        grid-template-columns: 3.5em minmax(0, 1fr);
+        column-gap: 12px;
+        align-items: start;
+        white-space: pre;
+      }
+
+      .snippet-line.is-target {
+        background: rgba(37, 99, 235, 0.2);
+      }
+
+      .snippet-line-number {
+        color: #93c5fd;
+        user-select: none;
+        text-align: right;
+      }
+
+      .refs code,
+      .summary code {
+        background: #eef2f7;
+        border-radius: 6px;
+        padding: 2px 6px;
+      }
+
+      .answer,
+      .oral,
+      .opening {
+        line-height: 1.55;
+      }
+
+      .slide ul,
+      .summary ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+      }
+
+      .bullet-list {
+        margin: 0;
+        padding-left: 20px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .bullet-list li {
+        line-height: 1.55;
+      }
+
+      .answer-bullets li::marker,
+      .oral-bullets li::marker {
+        color: var(--slide-accent);
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+
+      .count {
+        color: var(--success);
+        font-weight: 600;
+      }
+
+      .presentation-nav {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.9);
+        color: #fff;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+        z-index: 30;
+      }
+
+      .presentation-nav button {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.14);
+        color: inherit;
+      }
+
+      .presentation-nav button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+
+      .presentation-status {
+        min-width: 90px;
+        text-align: center;
+        font-weight: 600;
+      }
+
+      .presentation-icon {
+        min-width: 42px;
+        padding: 10px;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      body.presentation-mode {
+        background: #0f172a;
+        overflow: hidden;
+      }
+
+      body.presentation-mode .hero,
+      body.presentation-mode #question-panel,
+      body.presentation-mode .toolbar {
+        display: none;
+      }
+
+      body.presentation-mode .shell {
+        width: 100vw;
+        margin: 0;
+      }
+
+      body.presentation-mode .layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      body.presentation-mode .layout > .panel {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
+      }
+
+      body.presentation-mode #output {
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      body.presentation-mode .slide-deck {
+        display: block;
+      }
+
+      body.presentation-mode .slide {
+        display: none;
+        height: 100vh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 48px;
+        overflow-y: auto;
+      }
+
+      body.presentation-mode .slide.is-active {
+        display: block;
+      }
+
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        #question-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .slide {
+          min-height: auto;
+          padding: 18px;
+        }
+
+        body.presentation-mode .slide {
+          padding: 24px;
+        }
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        .shell {
+          width: 100%;
+          margin: 0;
+        }
+
+        .hero,
+        .panel,
+        .slide,
+        .summary {
+          box-shadow: none;
+        }
+
+        .actions,
+        #question-panel,
+        .toolbar .muted,
+        .count,
+        #start-presentation,
+        #print-page,
+        #generate {
+          display: none !important;
+        }
+
+        .layout {
+          display: block;
+        }
+
+        .panel {
+          border: 0;
+          padding: 0;
+        }
+
+        .summary,
+        .slide {
+          page-break-after: always;
+        }
+
+        .presentation-nav {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <section class="hero">
+        <div class="eyebrow">Exam Builder</div>
+        <h1>Pick asked questions and build your response</h1>
+        <p>
+          Select any mix of questions across JavaScript, React, and routing/deployment/auth.
+          The page assembles a presentation-style answer sheet with a short opening, key answer,
+          oral version, and code references from this project.
+        </p>
+        <div class="actions">
+          <button class="primary" id="generate">Generate presentation</button>
+          <button id="start-presentation" disabled>Start presentation</button>
+          <button id="print-page">Print or save PDF</button>
+        </div>
+      </section>
+
+      <div class="layout">
+        <section class="panel" id="question-panel"></section>
+        <section class="panel">
+          <div class="toolbar">
+            <div>
+              <h2>Generated response</h2>
+              <div class="muted">Use this as your speaking outline.</div>
+            </div>
+            <div class="count" id="selected-count">0 questions selected</div>
+          </div>
+          <div id="output" class="output-empty">
+            Select the questions you have been asked, then press <strong>Generate presentation</strong>.
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="presentation-nav" id="presentation-nav" hidden>
+      <button type="button" id="prev-slide" class="presentation-icon" aria-label="Previous slide">&lt;</button>
+      <div class="presentation-status" id="presentation-status">1 / 1</div>
+      <button type="button" id="next-slide" class="presentation-icon" aria-label="Next slide">&gt;</button>
+      <button type="button" id="exit-presentation" class="presentation-icon" aria-label="Exit presentation">X</button>
+    </div>
+
+    <script src="./reference-snippets.js"></script>
+    <script>
+      const categories = [
+        {
+          id: 'javascript',
+          title: 'JavaScript',
+          intro: 'Core language concepts with examples from the app code.',
+          items: [
+            {
+              id: 'js-hof',
+              question: 'What are higher-order functions in JavaScript and what are the benefits?',
+              answer:
+                'A higher-order function is a function that takes another function as an argument or returns a function. In this project I use higher-order functions like map, reduce, and Promise.all. For example, Menu.jsx uses reduce to group products by type, and useAdminData.js uses map inside Promise.all to update requests. The main benefits are less repetition, clearer intent, and easier data transformation.',
+              oral:
+                'In our code, higher-order functions are used all the time. A good example is reduce in Menu.jsx and map in async request handling. They make the code shorter, more declarative, and easier to maintain.',
+              refs: ['src/components/Services/Menu.jsx:7', 'src/components/Admin/useAdminData.js:116']
+            },
+            {
+              id: 'js-callbacks',
+              question: 'Show some examples where you used a higher-order function that takes a callback function as argument.',
+              answer:
+                'The codebase uses callbacks in several places. setTimeout takes a callback in App.jsx when a toast is cleared. addEventListener takes a callback in tweaks-panel.jsx. Array methods like map also take callbacks in many components. The benefit is that behavior can be passed into a reusable API and executed later when an event, timer, or iteration happens.',
+              oral:
+                'Examples are setTimeout, addEventListener, and map. I pass in a function that should run later. That is useful because the browser or JavaScript runtime decides when to call it.',
+              refs: ['src/App.jsx:299', 'src/tweaks-panel.jsx:186', 'src/components/Marketing/FAQ.jsx:18']
+            },
+            {
+              id: 'js-package',
+              question: 'What is the purpose of the package.json file and what can you do with it?',
+              answer:
+                'package.json describes the project, its dependencies, and available scripts. In this repo it defines scripts like npm run dev, npm run build, npm run lint, and npm run preview. It also declares React, Vite, and ESLint dependencies and sets the project to use ES modules with type module.',
+              oral:
+                'package.json is the project config file. It tells us which packages the app depends on and which scripts we can run, like dev, build, and lint.',
+              refs: ['package.json:1']
+            },
+            {
+              id: 'js-fetch',
+              question: 'Show and explain how to use the fetch function in JavaScript.',
+              answer:
+                'The best project example is fetchJson in api/client.js. It wraps fetch with common headers and error handling. It sends requests, waits for the response, and then parses JSON or throws an error. That lets the rest of the app call reusable API helpers instead of repeating fetch logic in each component.',
+              oral:
+                'In this project, fetch is wrapped in a helper called fetchJson. That helper adds JSON headers, waits for the response, and handles errors in one place, which makes the rest of the code cleaner.',
+              refs: ['src/api/client.js:153', 'src/api/client.js:173']
+            },
+            {
+              id: 'js-async',
+              question: 'Show the difference between synchronous and asynchronous programming and how async and await fit into this.',
+              answer:
+                'Synchronous code runs immediately step by step, like directly setting CSS properties in App.jsx. Asynchronous code is used when the app waits for external work like API calls. In App.jsx and Profile.jsx the code uses async functions and await to fetch products or requests without blocking the whole app. async marks the function as asynchronous, and await pauses inside that function until the promise resolves.',
+              oral:
+                'Synchronous code runs right away, while asynchronous code waits for something like network data. In our app I use async and await when loading products or user requests, because I need to wait for the backend.',
+              refs: ['src/App.jsx:247', 'src/components/Profile/Profile.jsx:21', 'src/App.jsx:273']
+            },
+            {
+              id: 'js-storage',
+              question: 'What is the difference between localStorage and sessionStorage in JavaScript?',
+              answer:
+                'localStorage persists even after the browser is closed, while sessionStorage only lasts for the current tab session. This app uses localStorage to save the JWT token and stored user session so login state survives refreshes and browser restarts.',
+              oral:
+                'The main difference is persistence. localStorage stays longer, sessionStorage is temporary. In this project localStorage is used for the token and user data.',
+              refs: ['src/api/client.js:5', 'src/api/client.js:197', 'src/api/client.js:207']
+            },
+            {
+              id: 'js-devtools-storage',
+              question: 'Show the use of different storage options in browsers developer tools.',
+              answer:
+                'In browser DevTools, the Application tab shows storage types like Local Storage, Session Storage, Cookies, and IndexedDB. In this app, Local Storage is the most relevant because keys like mm_api_token and mm_api_user are stored there. That can be demonstrated directly after logging in.',
+              oral:
+                'In DevTools I would open the Application tab and show Local Storage. In this app that is where the token and user session are stored.',
+              refs: ['src/api/client.js:5', 'src/api/client.js:6']
+            },
+            {
+              id: 'js-dom',
+              question: 'Show an example of DOM manipulation in JavaScript.',
+              answer:
+                'A strong example is the SEO component. It queries meta or link tags, creates them if they do not exist, appends them to document.head, and sets attributes. That is direct DOM manipulation done outside of React rendering because SEO metadata needs to be written into the document head.',
+              oral:
+                'A clear DOM example is in SEO.jsx, where the code creates and updates meta tags in document.head. That is a direct DOM change with JavaScript.',
+              refs: ['src/components/Layout/SEO.jsx:255', 'src/components/Layout/SEO.jsx:268', 'src/components/Layout/SEO.jsx:281']
+            },
+            {
+              id: 'js-bubbling',
+              question: 'Show and explain the concept of event bubbling in JavaScript.',
+              answer:
+                'The tweaks panel shows event bubbling clearly. The panel header listens for onMouseDown to start dragging, while the close button inside it calls stopPropagation on mousedown. Without stopPropagation, clicking the close button would also trigger the parent drag behavior. This shows how events start on the child and bubble up to the parent unless stopped.',
+              oral:
+                'Event bubbling means the event happens on the child first and then moves up to parent elements. In our tweaks panel, stopPropagation is used so the close button does not also trigger dragging on the parent.',
+              refs: ['src/tweaks-panel.jsx:224', 'src/tweaks-panel.jsx:227']
+            },
+            {
+              id: 'js-scope',
+              question: 'What is the scope of a variable in JavaScript? Explain the difference between global and local scope.',
+              answer:
+                'Scope means where a variable is visible in code. In this project, top-level constants like API base URLs and storage keys are module scoped, meaning they are available throughout one file. Local variables like response inside fetchJson only exist inside that function. So the practical difference is that local scope is limited to a function or block, while top-level or global-like values are available in a wider area.',
+              oral:
+                'Scope is about where a variable can be used. In our code, constants like TOKEN_STORAGE_KEY are available across one file, while variables like response only exist inside one function.',
+              refs: ['src/api/client.js:1', 'src/api/client.js:5', 'src/api/client.js:173']
+            },
+            {
+              id: 'js-spread-rest',
+              question: 'Show and explain the spread operator in JavaScript and how it differs from the rest operator.',
+              answer:
+                'Spread expands values out, while rest collects remaining values. In this project, spread is used when updating state like setCart with a new object based on the old one. Rest is used in apiRequest when authToken and headers are pulled out and the remaining options are collected into fetchOptions.',
+              oral:
+                'Spread means unpack or copy values, for example when updating React state. Rest means collect the leftover values, like in the API request helper.',
+              refs: ['src/App.jsx:305', 'src/api/client.js:340', 'src/components/Services/Menu.jsx:10']
+            }
+          ]
+        },
+        {
+          id: 'react',
+          title: 'React',
+          intro: 'Components, JSX, hooks, forms, rendering, and error handling.',
+          items: [
+            {
+              id: 'react-component',
+              question: 'What is the main concept of a React component? Show and explain in your own code.',
+              answer:
+                'A React component is a reusable piece of UI with its own logic. In this project, Menu, Profile, AuthModal, and Admin are all separate components. For example, Menu receives props, stores local tab state, and returns JSX. That is the core React component pattern: input through props, local behavior through state, and declarative UI output.',
+              oral:
+                'A component is a reusable UI building block. In our app, Menu and AuthModal are good examples because they take props, manage state, and render a specific piece of the interface.',
+              refs: ['src/components/Services/Menu.jsx:6', 'src/components/Profile/Profile.jsx:6']
+            },
+            {
+              id: 'react-benefits',
+              question: 'Explain the benefits of using components compared to how you would build a web application in vanilla JavaScript.',
+              answer:
+                'Components split the app into smaller reusable parts, which makes the app easier to maintain and reason about. In vanilla JavaScript, I would manually create DOM nodes, update text and classes, and reattach event listeners. In this app, App.jsx composes the UI from many focused components like Topbar, Hero, Menu, Booking, and Footer instead of one large script managing everything directly.',
+              oral:
+                'Components make the app modular. Instead of manually building and updating the DOM everywhere, React lets me break the UI into reusable pieces with clear responsibilities.',
+              refs: ['src/App.jsx:350', 'src/components/Layout/Topbar.jsx:1', 'src/components/Booking/Booking.jsx:230']
+            },
+            {
+              id: 'react-jsx',
+              question: 'What is JSX? Provide an example.',
+              answer:
+                'JSX is HTML-like syntax inside JavaScript that React turns into UI instructions. In this project, FAQ.jsx maps data into JSX elements with dynamic classes, nested elements, and event handlers. JSX makes React components much easier to read than equivalent manual DOM code.',
+              oral:
+                'JSX is the syntax React uses so we can write UI in a form that looks like HTML inside JavaScript. FAQ.jsx is a simple example where data is mapped directly into rendered markup.',
+              refs: ['src/components/Marketing/FAQ.jsx:13']
+            },
+            {
+              id: 'react-vanilla',
+              question: 'How would you write the same functionality if you only used JavaScript, HTML and DOM manipulation?',
+              answer:
+                'Without React, I would query a root element, create HTML elements manually, append them, add event listeners, and rerender or update pieces of the DOM myself when state changes. A good comparison is the FAQ behavior: in React it is driven by state and JSX, while in vanilla JavaScript it would need manual DOM creation and update logic.',
+              oral:
+                'With plain JavaScript I would use document.createElement, appendChild, addEventListener, and manual rerendering. React removes a lot of that manual work by linking rendering to state.',
+              refs: ['src/components/Marketing/FAQ.jsx:18', 'src/components/Layout/SEO.jsx:255']
+            },
+            {
+              id: 'react-props',
+              question: 'Show and describe the purpose of props including children.',
+              answer:
+                'Props pass data and functions from a parent component to a child component. For example, App passes user, products, loading flags, and handlers into page components. children is a special prop used when a component wraps nested content. Page in App.jsx and TweaksPanel in tweaks-panel.jsx both use children to render whatever is placed inside them.',
+              oral:
+                'Props are how components communicate. They let a parent send data and handlers to a child. children is the prop used when one component wraps other content.',
+              refs: ['src/App.jsx:47', 'src/App.jsx:65', 'src/tweaks-panel.jsx:146']
+            },
+            {
+              id: 'react-state',
+              question: 'Show and explain the role of state in a React component.',
+              answer:
+                'State stores values that change over time and affect rendering. AuthModal is a good example because it keeps mode, email, password, busy, and error in state. When one of those values changes, React rerenders the component so the UI stays in sync with the data.',
+              oral:
+                'State is the changing data inside a component. In AuthModal, state holds input values, loading state, and error messages, and React rerenders automatically when they change.',
+              refs: ['src/components/Auth/AuthModal.jsx:59']
+            },
+            {
+              id: 'react-errors',
+              question: 'How do you handle errors in React? Show examples in your own code.',
+              answer:
+                'This project uses try catch around async work and stores user-friendly messages in component state. Profile catches request loading errors and shows them in the UI. AuthModal handles both generic auth errors and specific cases like a 409 conflict when a user already exists. EmailPanel also validates inputs before sending and catches API errors when sending email.',
+              oral:
+                'The pattern in this app is try catch plus error state. We catch the error, extract a useful message, save it in state, and render that message in the component.',
+              refs: ['src/components/Profile/Profile.jsx:21', 'src/components/Auth/AuthModal.jsx:83', 'src/components/Admin/EmailPanel/EmailPanel.jsx:38']
+            },
+            {
+              id: 'react-conditional',
+              question: 'Provide examples for different ways of doing conditional rendering.',
+              answer:
+                'The codebase uses several conditional rendering patterns. It uses logical and for loading and error states, ternaries for small value switches like button text, and early return null in tweaks-panel.jsx when the panel is closed. Admin.jsx also conditionally renders different panel sections based on the current tab.',
+              oral:
+                'The main patterns are condition and render with double ampersand, ternary for two options, and return null when nothing should be shown.',
+              refs: ['src/components/Services/Menu.jsx:28', 'src/components/Services/Menu.jsx:65', 'src/tweaks-panel.jsx:218', 'src/components/Admin/Admin.jsx:469']
+            },
+            {
+              id: 'react-useeffect',
+              question: 'Show and explain the useEffect hook, for example callback and dependency array.',
+              answer:
+                'useEffect runs side effects after rendering. Profile.jsx uses it to load the current user requests when the user id becomes available. The callback contains the async loading logic, the dependency array is id so the effect reruns when id changes, and the cleanup prevents state updates after unmount. Another effect in tweaks-panel.jsx registers and removes browser event listeners.',
+              oral:
+                'useEffect is for side effects like fetching data or adding listeners. The dependency array controls when it runs, and the returned cleanup function is used to remove listeners or prevent stale updates.',
+              refs: ['src/components/Profile/Profile.jsx:14', 'src/tweaks-panel.jsx:168', 'src/tweaks-panel.jsx:180']
+            },
+            {
+              id: 'react-events',
+              question: 'Show and describe event handling in React, for example onClick, onChange, onSubmit.',
+              answer:
+                'React event handling is done with props like onClick, onChange, and onSubmit. This app uses onClick for buttons across many components, onChange for controlled form inputs in AuthModal and Booking, and onSubmit for forms like AuthModal, Booking, and EmailPanel.',
+              oral:
+                'In React, events are passed as props. onClick handles button presses, onChange keeps inputs in sync with state, and onSubmit handles form submission.',
+              refs: ['src/components/Marketing/Hero.jsx:40', 'src/components/Auth/AuthModal.jsx:154', 'src/components/Auth/AuthModal.jsx:122']
+            },
+            {
+              id: 'react-submit',
+              question: 'Show examples of how to handle form submit events.',
+              answer:
+                'The common pattern in this project is event.preventDefault, validation, async submission, and loading or error updates. AuthModal and EmailPanel both follow that pattern. Booking uses the same structure for a larger multi-step submit flow that may create an account, create a request, and send emails.',
+              oral:
+                'For submit events I first call preventDefault, then validate input, then perform async work, and finally update loading or error state depending on the result.',
+              refs: ['src/components/Auth/AuthModal.jsx:66', 'src/components/Admin/EmailPanel/EmailPanel.jsx:38', 'src/components/Booking/Booking.jsx:276']
+            },
+            {
+              id: 'react-lists',
+              question: 'Show and explain how the map function is used for rendering lists in React and explain the purpose of the key attribute in React lists.',
+              answer:
+                'The app uses map throughout the UI to turn arrays into JSX lists. Menu.jsx maps products into article cards, and FAQ.jsx maps item objects into question blocks. The key attribute gives React a stable identity for each item so it can update lists correctly and efficiently between renders. Using a stable id is best when available.',
+              oral:
+                'map is used to convert array data into rendered JSX. key is important because React uses it to know which item is which when a list changes.',
+              refs: ['src/components/Services/Menu.jsx:47', 'src/components/Marketing/FAQ.jsx:18']
+            },
+            {
+              id: 'react-controlled',
+              question: 'Show and explain how controlled components are different from uncontrolled components in React forms.',
+              answer:
+                'This project mainly uses controlled components. Inputs like emailForm.to in EmailPanel or location in Booking get their value from React state and push changes back through onChange. That means React is the source of truth, which makes validation and resets easier. Uncontrolled inputs would keep their own state in the DOM and would usually be read through refs.',
+              oral:
+                'Controlled inputs are driven by React state. Uncontrolled inputs are driven by the DOM itself. This app mostly uses controlled inputs because they are easier to validate and reset.',
+              refs: ['src/components/Admin/EmailPanel/EmailPanel.jsx:96', 'src/components/Booking/Booking.jsx:511']
+            },
+            {
+              id: 'react-hooks',
+              question: 'What are React Hooks? Provide examples of at least two built-in hooks.',
+              answer:
+                'Hooks are built-in React functions that let function components use React features like state, effects, refs, and memoization. This project uses useState, useEffect, useMemo, useRef, and useCallback. For example, FAQ uses useState for open panel state, Profile uses useEffect for data loading, and Menu uses useMemo for derived grouped data.',
+              oral:
+                'Hooks are functions like useState and useEffect that add React behavior to function components. In our codebase, useState is used for local UI data and useEffect is used for things like loading API data.',
+              refs: ['src/components/Marketing/FAQ.jsx:4', 'src/components/Profile/Profile.jsx:14', 'src/components/Services/Menu.jsx:7']
+            },
+            {
+              id: 'react-errors-2',
+              question: 'Show example of how you handle errors in React.',
+              answer:
+                'A compact example is EmailPanel. It validates required fields, clears previous messages, tries to send the email, then sets either success or error state depending on the result. That pattern shows both client-side validation and server-side error handling in one component.',
+              oral:
+                'EmailPanel is a good example because it checks the form first, then catches API errors, then shows the outcome directly in the UI.',
+              refs: ['src/components/Admin/EmailPanel/EmailPanel.jsx:38']
+            }
+          ]
+        },
+        {
+          id: 'router',
+          title: 'Router, Deployment, Auth and Security',
+          intro: 'Routing, CSS layout, CI/CD, Caddy, JWT, HTTPS, and CORS.',
+          items: [
+            {
+              id: 'router-what',
+              question: 'Explain what React Router is and which problems it solves.',
+              answer:
+                'React Router handles client-side navigation in the app. It solves the problem of switching views and URLs without full page reloads. In this codebase it maps paths like slash, profile, catering, cleaning, and admin to React components and also supports redirects for unknown paths and protected areas.',
+              oral:
+                'React Router lets this single-page app behave like a multi-page site. It connects URLs to components and avoids full page reloads.',
+              refs: ['src/main.jsx:3', 'src/App.jsx:358', 'src/App.jsx:439']
+            },
+            {
+              id: 'router-building-blocks',
+              question: 'Show and explain the essential building blocks of React Router.',
+              answer:
+                'The main building blocks used here are BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, and useLocation. BrowserRouter wraps the app, Routes groups routes, Route maps a path to a component, Navigate redirects, NavLink creates links with active styling, useNavigate changes route in code, and useLocation reads the current URL.',
+              oral:
+                'The key Router pieces in our app are BrowserRouter for setup, Route and Routes for path matching, NavLink for navigation, Navigate for redirects, and useNavigate for code-driven navigation.',
+              refs: ['src/main.jsx:8', 'src/App.jsx:358', 'src/components/Layout/Topbar.jsx:1', 'src/App.jsx:207']
+            },
+            {
+              id: 'css-flex-grid',
+              question: 'Describe the purpose of flexbox and grid in CSS, and show examples of what can be achieved by applying them.',
+              answer:
+                'Flexbox is best for one-dimensional layout such as rows or columns, while grid is best for two-dimensional layout with both rows and columns. In App.css, flexbox is used for the top bar and other aligned rows, and grid is used for larger structural sections such as split layouts, menu cards, and booking sections. This shows how flexbox handles alignment and spacing, while grid handles page structure and repeated columns.',
+              oral:
+                'Flexbox is great for aligning things in one direction, like a navbar. Grid is better for bigger page layouts with rows and columns, like cards or a booking section.',
+              refs: ['src/App.css:74', 'src/App.css:367', 'src/App.css:600', 'src/App.css:1053']
+            },
+            {
+              id: 'deploy-cicd',
+              question: 'Describe conceptually how we deploy a React frontend application to the Caddy server through the CI/CD pipeline.',
+              answer:
+                'In this repo, the deployment flow starts when code is pushed to main. GitHub Actions builds a Docker image and pushes it to Docker Hub. On the server side, docker compose can pull that image and run the container. Caddy then sits in front of the container and exposes the app through the real domain. So the conceptual chain is git push, CI build, Docker image push, server pull, container run, Caddy serve.',
+              oral:
+                'The flow is push to main, GitHub Actions builds and pushes the image, the server pulls it, docker compose runs it, and Caddy makes it available on the domain.',
+              refs: ['.github/workflows/docker-publish.yml:3', 'Dockerfile:1', 'docker-compose.yml:1']
+            },
+            {
+              id: 'deploy-caddy-purpose',
+              question: 'What is the purpose of Caddy? Explain how we use it in our deployment pipeline.',
+              answer:
+                'There is no Caddyfile in this repo, so this answer is conceptual. Caddy is typically used as a reverse proxy, a static file server, and an HTTPS certificate manager. In this setup, the app container serves the frontend on an internal or mapped port, and Caddy would receive public traffic on the domain and forward it to that container while also handling TLS and certificates.',
+              oral:
+                'Caddy is the server layer in front of the app. It can proxy traffic to the frontend container, serve files, and manage HTTPS certificates automatically.',
+              refs: ['Dockerfile:19', 'docker-compose.yml:6']
+            },
+            {
+              id: 'jwt-flow',
+              question: 'Show and explain conceptually a typical flow of using JWTs for user authentication in a React application.',
+              answer:
+                'A typical JWT flow is: the user submits credentials, the backend returns a token, the frontend stores that token, and later requests send it in the Authorization Bearer header. In this project, AuthModal sends credentials to login, api client extracts the token, stores it in localStorage, decodes user-related claims, and sends the token on future authenticated requests.',
+              oral:
+                'The JWT flow is login, receive token, store token, then send it back with protected requests. That is exactly how our app handles authentication.',
+              refs: ['src/components/Auth/AuthModal.jsx:85', 'src/api/client.js:34', 'src/api/client.js:193', 'src/api/client.js:340']
+            },
+            {
+              id: 'jwt-parts',
+              question: 'Show and explain the different parts of a JWT token.',
+              answer:
+                'A JWT has three parts: header, payload, and signature. The format is header dot payload dot signature. This codebase explicitly splits the token and decodes the payload in decodeJwtPayload. The payload is where claims like user id, email, role, or tenant id are typically read from.',
+              oral:
+                'A JWT has three parts separated by dots: header, payload, and signature. In our app we decode the payload so we can read user-related claims.',
+              refs: ['src/api/client.js:18', 'src/api/client.js:22', 'src/api/client.js:135']
+            },
+            {
+              id: 'jwt-app-use',
+              question: 'How do we use JWT in our React application?',
+              answer:
+                'This app uses JWT to store the login session, rebuild the user after refresh, attach authentication to API requests, and determine role-related behavior like navigating admins to the admin page. The token is stored in localStorage and sent in the Authorization header when apiRequest is used.',
+              oral:
+                'In this app the JWT is used to remember who the user is and to authorize protected API requests.',
+              refs: ['src/api/client.js:197', 'src/api/client.js:207', 'src/api/client.js:348', 'src/App.jsx:448']
+            },
+            {
+              id: 'jwt-login',
+              question: 'Describe and show the login process using JWT.',
+              answer:
+                'The login process starts in AuthModal, where the submit handler gathers credentials and calls login. login delegates to requestLogin in api client, which tries available login payload formats and endpoints, extracts the returned token, stores it, and builds a user session object. Then App receives the authenticated user, stores it in state, and navigates to profile or admin based on role.',
+              oral:
+                'The user logs in through AuthModal, the backend returns a token, the app stores it, builds a user session, and redirects the user to the right page.',
+              refs: ['src/components/Auth/AuthModal.jsx:66', 'src/api/client.js:238', 'src/api/client.js:291', 'src/App.jsx:448']
+            },
+            {
+              id: 'https',
+              question: 'Describe conceptually what HTTPS is and how we got it working on our deployed websites.',
+              answer:
+                'HTTPS is HTTP secured by TLS. It encrypts traffic, helps verify the server identity, and protects data integrity. In this project, HTTPS is a deployment concern rather than React code. The likely setup is that Caddy terminates HTTPS, manages certificates, and serves or proxies the frontend through secure URLs. The codebase itself expects HTTPS URLs for the deployed site and API.',
+              oral:
+                'HTTPS means encrypted HTTP traffic. In our deployed setup, that is usually handled by Caddy, which gets certificates and serves the site over secure URLs.',
+              refs: ['src/api/client.js:1', 'src/components/Layout/SEO.jsx:3']
+            },
+            {
+              id: 'subrouting',
+              question: 'Show and explain an example of sub-routing.',
+              answer:
+                'The current app does not implement nested sub-routing in React Router. It uses top-level routes only. A conceptual sub-routing example would be slash admin slash users and slash admin slash products, defined as child routes under an admin layout route. In the current app, admin section switching is done with internal tab state rather than nested URLs.',
+              oral:
+                'We do not currently use nested sub-routing in the codebase, but conceptually it would mean child routes like admin slash users under a parent admin route.',
+              refs: ['src/App.jsx:358', 'src/components/Admin/Admin.jsx:48']
+            },
+            {
+              id: 'cors',
+              question: 'Describe conceptually what Same Origin Policy and CORS are, and how we avoid getting CORS errors when fetching data from our API.',
+              answer:
+                'Same Origin Policy is the browser rule that blocks unsafe cross-origin access by default. CORS is the mechanism that allows a server to explicitly permit cross-origin requests. In this app, development avoids many CORS issues by using slash api as the base path when running in development, which usually works through a same-origin proxy. In production, correct reverse proxying or backend CORS headers are needed when using the deployed API URL.',
+              oral:
+                'SOP is the browser security rule, and CORS is the controlled exception. In development our app uses slash api to avoid direct cross-origin fetches, and in production the server setup must handle cross-origin access correctly.',
+              refs: ['src/api/client.js:1', 'src/api/client.js:2', 'src/api/client.js:3']
+            }
+          ]
+        }
+      ];
+
+      const questionPanel = document.getElementById('question-panel');
+      const output = document.getElementById('output');
+      const selectedCount = document.getElementById('selected-count');
+      const startPresentationButton = document.getElementById('start-presentation');
+      const presentationNav = document.getElementById('presentation-nav');
+      const presentationStatus = document.getElementById('presentation-status');
+      const prevSlideButton = document.getElementById('prev-slide');
+      const nextSlideButton = document.getElementById('next-slide');
+      const exitPresentationButton = document.getElementById('exit-presentation');
+      const REFERENCE_SNIPPETS = window.REFERENCE_SNIPPETS || {};
+      let currentSlideIndex = 0;
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function loadReferenceSnippet(ref) {
+        const snippet = REFERENCE_SNIPPETS[ref];
+
+        if (!snippet) {
+          throw new Error(`Missing embedded snippet for ${ref}.`);
+        }
+
+        return {
+          ...snippet,
+          snippetLines: snippet.snippetLines.map(([lineNumber, text, isTarget]) => ({
+            lineNumber,
+            text,
+            isTarget: Boolean(isTarget),
+          })),
+        };
+      }
+
+      function renderSnippetMarkup(snippet) {
+        const codeMarkup = snippet.snippetLines
+          .map(({ lineNumber, text, isTarget }) => `<span class="snippet-line${isTarget ? ' is-target' : ''}"><span class="snippet-line-number">${lineNumber}</span><span>${escapeHtml(text)}</span></span>`)
+          .join('');
+
+        return `
+          <div class="snippet-viewer">
+            <div class="snippet-header">
+              <strong>Code snippet</strong>
+              <code>${escapeHtml(snippet.ref)}</code>
+            </div>
+            <pre class="snippet-code"><code>${codeMarkup}</code></pre>
+          </div>
+        `;
+      }
+
+      function splitIntoBullets(text) {
+        const normalized = String(text).replace(/\s+/g, ' ').trim();
+        const bullets = normalized.match(/[^.!?]+[.!?]?/g) || [];
+        return bullets.map((item) => item.trim()).filter(Boolean);
+      }
+
+      function renderBulletList(text, className = '') {
+        const bullets = splitIntoBullets(text);
+        return `<ul class="bullet-list ${className}">${bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+      }
+
+      function getSlides() {
+        return Array.from(output.querySelectorAll('.slide'));
+      }
+
+      function updatePresentationView() {
+        const slides = getSlides();
+
+        slides.forEach((slide, index) => {
+          const isActive = index === currentSlideIndex;
+          slide.classList.toggle('is-active', isActive);
+          slide.setAttribute('aria-hidden', String(!isActive));
+        });
+
+        presentationStatus.textContent = slides.length ? `${currentSlideIndex + 1} / ${slides.length}` : '0 / 0';
+        prevSlideButton.disabled = currentSlideIndex <= 0;
+        nextSlideButton.disabled = currentSlideIndex >= slides.length - 1;
+      }
+
+      async function startPresentation() {
+        const slides = getSlides();
+
+        if (!slides.length) {
+          return;
+        }
+
+        currentSlideIndex = 0;
+        document.body.classList.add('presentation-mode');
+        presentationNav.hidden = false;
+        updatePresentationView();
+
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+          try {
+            await document.documentElement.requestFullscreen();
+          } catch {
+            // Ignore fullscreen rejection and keep presentation mode active.
+          }
+        }
+      }
+
+      async function exitPresentation(skipFullscreenExit = false) {
+        document.body.classList.remove('presentation-mode');
+        presentationNav.hidden = true;
+
+        getSlides().forEach((slide) => {
+          slide.classList.remove('is-active');
+          slide.removeAttribute('aria-hidden');
+        });
+
+        if (!skipFullscreenExit && document.fullscreenElement && document.exitFullscreen) {
+          try {
+            await document.exitFullscreen();
+          } catch {
+            // Ignore fullscreen exit errors.
+          }
+        }
+      }
+
+      function movePresentation(direction) {
+        const slides = getSlides();
+
+        if (!slides.length) {
+          return;
+        }
+
+        const nextIndex = Math.min(slides.length - 1, Math.max(0, currentSlideIndex + direction));
+
+        if (nextIndex === currentSlideIndex) {
+          return;
+        }
+
+        currentSlideIndex = nextIndex;
+        updatePresentationView();
+      }
+
+      function toggleSnippet(button) {
+        const ref = button.dataset.ref;
+        const refsContainer = button.closest('.refs');
+        const snippetHost = refsContainer.querySelector('[data-snippet-host]');
+        const activeButton = refsContainer.querySelector('.ref-button[aria-expanded="true"]');
+
+        if (button.getAttribute('aria-expanded') === 'true') {
+          button.setAttribute('aria-expanded', 'false');
+          snippetHost.innerHTML = '';
+          return;
+        }
+
+        if (activeButton) {
+          activeButton.setAttribute('aria-expanded', 'false');
+        }
+
+        button.setAttribute('aria-expanded', 'true');
+
+        try {
+          const snippet = loadReferenceSnippet(ref);
+          snippetHost.innerHTML = renderSnippetMarkup(snippet);
+        } catch (error) {
+          snippetHost.innerHTML = `
+            <div class="snippet-viewer">
+              <div class="snippet-header">
+                <strong>Could not load snippet</strong>
+                <code>${escapeHtml(ref)}</code>
+              </div>
+              <pre class="snippet-code"><code>${escapeHtml(error.message)}</code></pre>
+            </div>
+          `;
+        }
+      }
+
+      function updateCount() {
+        const count = document.querySelectorAll('input[data-question]:checked').length;
+        selectedCount.textContent = `${count} question${count === 1 ? '' : 's'} selected`;
+      }
+
+      function syncQuestionState(input) {
+        input.closest('.question')?.classList.toggle('is-selected', input.checked);
+      }
+
+      function renderQuestions() {
+        questionPanel.innerHTML = categories.map((category) => `
+          <section class="category" data-category="${category.id}" data-collapsed="false">
+            <div class="category-head">
+              <button type="button" class="category-title" data-category-toggle="${category.id}" aria-expanded="true">
+                <span class="category-toggle" aria-hidden="true">▾</span>
+                <span>
+                  <h3>${category.title}</h3>
+                  <span class="muted">${category.intro}</span>
+                </span>
+              </button>
+            </div>
+            <div class="question-list">
+              ${category.items.map((item) => `
+                <label class="question">
+                  <input type="checkbox" data-question data-id="${item.id}" data-category-id="${category.id}" />
+                  <span>${item.question}</span>
+                </label>
+              `).join('')}
+            </div>
+          </section>
+        `).join('');
+
+        questionPanel.querySelectorAll('input[data-question]').forEach((input) => {
+          syncQuestionState(input);
+          input.addEventListener('change', () => {
+            syncQuestionState(input);
+            updateCount();
+          });
+        });
+
+        questionPanel.querySelectorAll('[data-category-toggle]').forEach((button) => {
+          button.addEventListener('click', () => toggleCategory(button.dataset.categoryToggle));
+        });
+      }
+
+      function toggleCategory(categoryId) {
+        const category = document.querySelector(`[data-category="${categoryId}"]`);
+        const button = document.querySelector(`[data-category-toggle="${categoryId}"]`);
+
+        if (!category || !button) {
+          return;
+        }
+
+        const isCollapsed = category.dataset.collapsed === 'true';
+        category.dataset.collapsed = String(!isCollapsed);
+        button.setAttribute('aria-expanded', String(isCollapsed));
+      }
+
+      function getSelectedQuestions() {
+        const selectedIds = Array.from(document.querySelectorAll('input[data-question]:checked')).map((input) => input.dataset.id);
+        return categories.flatMap((category) => category.items.map((item) => ({ ...item, categoryId: category.id, categoryTitle: category.title }))).filter((item) => selectedIds.includes(item.id));
+      }
+
+      function generatePresentation() {
+        const selected = getSelectedQuestions();
+
+        if (!selected.length) {
+          exitPresentation(true);
+          startPresentationButton.disabled = true;
+          output.className = 'output-empty';
+          output.innerHTML = 'Select the questions you have been asked, then press <strong>Generate presentation</strong>.';
+          return;
+        }
+
+        const categoryCounts = categories
+          .map((category) => ({
+            title: category.title,
+            count: selected.filter((item) => item.categoryTitle === category.title).length,
+          }))
+          .filter((entry) => entry.count > 0);
+
+        output.className = '';
+        output.innerHTML = `
+          <div class="slide-deck">
+            <section class="summary slide theme-overview" data-slide-index="0">
+              <div class="eyebrow">Presentation Overview</div>
+              <h3 class="slide-question">Selected exam questions</h3>
+              <p class="opening">
+                I would answer these questions based on this codebase. I will move category by category,
+                point to concrete files, and explain both the concept and how it is implemented in the project.
+              </p>
+              <ul>
+                ${categoryCounts.map((entry) => `<li>${entry.title}: ${entry.count} question${entry.count === 1 ? '' : 's'}</li>`).join('')}
+              </ul>
+            </section>
+            ${selected.map((item, index) => `
+              <article class="slide theme-${item.categoryId}" data-slide-index="${index + 1}">
+                <div class="slide-top">
+                  <div>
+                    <div class="eyebrow">${item.categoryTitle}</div>
+                    <h3 class="slide-question">${item.question}</h3>
+                  </div>
+                  <div class="slide-number">${index + 1}</div>
+                </div>
+                <div class="slide-grid">
+                  <div class="slide-main">
+                    <section class="slide-card accent">
+                      <h4>Main answer</h4>
+                      ${renderBulletList(item.answer, 'answer-bullets')}
+                    </section>
+                    <section class="slide-card">
+                      <h4>Short oral version</h4>
+                      ${renderBulletList(item.oral, 'oral-bullets')}
+                    </section>
+                    <section class="slide-card refs">
+                      <h4>Code references</h4>
+                      <div class="ref-list">
+                        ${item.refs.map((ref) => `<button type="button" class="ref-button" data-ref="${escapeHtml(ref)}" aria-expanded="false">${escapeHtml(ref)}</button>`).join('')}
+                      </div>
+                      <div data-snippet-host></div>
+                    </section>
+                  </div>
+                </div>
+              </article>
+            `).join('')}
+          </div>
+        `;
+
+        startPresentationButton.disabled = false;
+        currentSlideIndex = 0;
+
+        if (document.body.classList.contains('presentation-mode')) {
+          updatePresentationView();
+        }
+      }
+
+      document.getElementById('generate').addEventListener('click', generatePresentation);
+      startPresentationButton.addEventListener('click', startPresentation);
+      document.getElementById('print-page').addEventListener('click', () => window.print());
+      prevSlideButton.addEventListener('click', () => movePresentation(-1));
+      nextSlideButton.addEventListener('click', () => movePresentation(1));
+      exitPresentationButton.addEventListener('click', () => exitPresentation());
+      output.addEventListener('click', (event) => {
+        const button = event.target.closest('.ref-button');
+
+        if (!button) {
+          return;
+        }
+
+        toggleSnippet(button);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (!document.body.classList.contains('presentation-mode')) {
+          return;
+        }
+
+        if (event.key === 'ArrowRight' || event.key === 'PageDown') {
+          event.preventDefault();
+          movePresentation(1);
+        }
+
+        if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+          event.preventDefault();
+          movePresentation(-1);
+        }
+
+        if (event.key === 'Home') {
+          event.preventDefault();
+          currentSlideIndex = 0;
+          updatePresentationView();
+        }
+
+        if (event.key === 'End') {
+          event.preventDefault();
+          currentSlideIndex = Math.max(0, getSlides().length - 1);
+          updatePresentationView();
+        }
+
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          exitPresentation();
+        }
+      });
+
+      document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement && document.body.classList.contains('presentation-mode')) {
+          exitPresentation(true);
+        }
+      });
+
+      renderQuestions();
+      updateCount();
+    </script>
+  </body>
+</html>
