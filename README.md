@@ -1,8 +1,53 @@
-# React + Vite
+# Morgendagens Maaltid Frontend
 
-## Run the published container
+This is the frontend for my Morgendagens Maaltid project. The app is built with React and Vite and includes the home page, catering, cleaning, profile, and admin views.
 
-The GitHub workflow builds and pushes this app as:
+The frontend talks to the backend for products, login, booking, and admin features.
+
+## Stack
+
+- React
+- Vite
+- React Router
+- ESLint
+- Docker
+
+## Local development
+
+I start the project like this:
+
+```sh
+npm install
+npm run dev
+```
+
+Vite runs on `http://localhost:5173` by default.
+
+In development, the app uses `/api` as the base path. If I want to point directly to a backend, I can set `VITE_API_BASE_URL`.
+
+```sh
+VITE_API_BASE_URL=http://localhost:8080 npm run dev
+```
+
+## Scripts
+
+```sh
+npm run dev
+npm run build
+npm run preview
+npm run lint
+```
+
+- `npm run dev` starts the development server
+- `npm run build` creates a production build
+- `npm run preview` previews the build locally
+- `npm run lint` checks the code with ESLint
+
+## Docker
+
+The project includes a `Dockerfile` and a `docker-compose.yml`, so I can run the frontend in a container.
+
+GitHub Actions builds and pushes the image as:
 
 ```sh
 DOCKERHUB_USERNAME/mmfront:latest
@@ -10,35 +55,31 @@ DOCKERHUB_USERNAME/mmfront:main
 DOCKERHUB_USERNAME/mmfront:<git-sha>
 ```
 
-To pull and run the published image with Docker Compose:
+To start the published container locally, I use:
 
 ```sh
 DOCKER_IMAGE=your-dockerhub-username/mmfront:latest docker compose up -d
 ```
 
-Then open:
+Then I can open the app at:
 
 ```sh
 http://localhost:8080
 ```
 
-You can change the local port if needed:
+If I want to use a different port:
 
 ```sh
 APP_PORT=3000 DOCKER_IMAGE=your-dockerhub-username/mmfront:latest docker compose up -d
 ```
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Project structure
 
-Currently, two official plugins are available:
+- `src/components` contains the UI components
+- `src/api` contains the backend calls
+- `src/lib` contains helpers and normalization
+- `src/styles` contains styling files
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## About the app
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+In this app I work with routing, auth, API calls, booking flow, and admin features. There is also a focus on SEO, reusable components, and a setup that can be deployed with Docker.
