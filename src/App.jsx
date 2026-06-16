@@ -110,6 +110,11 @@ function ProfilePage({ user, onBook, onLogout, onUserUpdated }) {
     return <Navigate to="/" replace />;
   }
 
+  const userHomePage = getUserHomePage(user);
+  if (userHomePage !== 'profile') {
+    return <Navigate to={PAGE_PATHS[userHomePage] || PAGE_PATHS.profile} replace />;
+  }
+
   return (
     <Page>
       <Profile user={user} onBook={onBook} onLogout={onLogout} onUserUpdated={onUserUpdated} />
