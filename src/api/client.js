@@ -82,28 +82,42 @@ function pickTenantId(data, claims) {
     ?? null;
 }
 
-function normalizeRole(value) {
+function normalizeRoles(value) {
   if (Array.isArray(value)) {
-    const roles = value.flatMap(role => normalizeRole(role).split(',')).filter(Boolean);
-    return roles.includes('ADMIN') ? 'ADMIN' : roles[0] || '';
+    return value.flatMap(role => normalizeRoles(role)).filter(Boolean);
   }
 
   if (typeof value === 'object') {
-    return normalizeRole(value?.name ?? value?.role ?? value?.authority);
+    return normalizeRoles(
+      value?.name
+      ?? value?.role
+      ?? value?.authority
+      ?? value?.roles,
+    );
   }
 
-  if (!value) return '';
+  if (!value) return [];
 
-  const role = String(value)
+  return String(value)
     .split(',')
     .map(item => item.trim().replace(/^ROLE_/i, '').toUpperCase())
-    .filter(Boolean)
-    .join(',');
-  return role;
+    .filter(Boolean);
 }
 
-function pickRole(data, claims) {
-  return normalizeRole([
+function dedupeRoles(roles) {
+  return Array.from(new Set(roles.filter(Boolean)));
+}
+
+function getPrimaryRole(roles) {
+  if (roles.includes('ADMIN')) return 'ADMIN';
+  if (roles.includes('EMPLOYEE')) return 'EMPLOYEE';
+  if (roles.includes('CLEANING_STAFF')) return 'CLEANING_STAFF';
+  if (roles.includes('CLEANING_CLIENT')) return 'CLEANING_CLIENT';
+  return roles[0] || '';
+}
+
+function pickRoles(data, claims) {
+  return dedupeRoles(normalizeRoles([
     data?.role,
     data?.user?.role,
     data?.roles,
@@ -112,7 +126,11 @@ function pickRole(data, claims) {
     claims?.roles,
     claims?.authorities,
     claims?.authority,
-  ]);
+  ]));
+}
+
+function pickRole(data, claims) {
+  return getPrimaryRole(pickRoles(data, claims));
 }
 
 function normalizeCredentials(credentials, key = 'email') {
@@ -146,6 +164,7 @@ function buildUserSession(data, credentials) {
     email,
     id: pickId(data, claims),
     tenantId: pickTenantId(data, claims),
+    roles: pickRoles(data, claims),
     role: pickRole(data, claims),
   };
 }
@@ -203,6 +222,10 @@ function storeAuthSession(data, credentials) {
   return user;
 }
 
+export function setStoredUser(user) {
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+}
+
 export function getStoredUser() {
   const raw = localStorage.getItem(USER_STORAGE_KEY);
   if (!raw) return null;
@@ -216,13 +239,20 @@ export function getStoredUser() {
       || storedUser?.tenantDTO?.id
       || storedUser?.tenant?.id
       || pickTenantId(storedUser, claims);
-    const role = pickRole(storedUser, claims) || storedUser?.role;
+    const roles = pickRoles(storedUser, claims);
+    const fallbackRoles = Array.isArray(storedUser?.roles)
+      ? dedupeRoles(normalizeRoles(storedUser.roles))
+      : storedUser?.role
+        ? dedupeRoles(normalizeRoles(storedUser.role))
+        : [];
+    const nextRoles = roles.length ? roles : fallbackRoles;
+    const role = getPrimaryRole(nextRoles) || storedUser?.role;
 
     if (!id && !tenantId && !role) return storedUser;
 
-    const nextUser = { ...storedUser, id, tenantId, role };
+    const nextUser = { ...storedUser, id, tenantId, roles: nextRoles, role };
     delete nextUser.userId;
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
+    setStoredUser(nextUser);
     return nextUser;
   } catch {
     localStorage.removeItem(USER_STORAGE_KEY);
@@ -331,6 +361,13 @@ export async function register(credentials) {
   }
 
   return login(nextCredentials);
+}
+
+export async function changePassword({ currentPassword, newPassword }) {
+  return apiRequest('/auth/change-password', {
+    method: 'PUT',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  }, false);
 }
 
 function getToken() {

@@ -176,6 +176,10 @@ function getUserRoles(customer) {
     .filter(Boolean);
 }
 
+function hasRole(customer, expectedRole) {
+  return getUserRoles(customer).some(role => role.toLowerCase() === expectedRole.toLowerCase());
+}
+
 export function getUserRole(customer) {
   const roles = getUserRoles(customer);
   if (!roles.length) return 'None';
@@ -184,7 +188,19 @@ export function getUserRole(customer) {
 }
 
 export function isAdminUser(customer) {
-  return getUserRoles(customer).some(role => role.toLowerCase() === 'admin');
+  return hasRole(customer, 'admin');
+}
+
+export function isEmployeeUser(customer) {
+  return hasRole(customer, 'employee') || hasRole(customer, 'cleaning_staff');
+}
+
+export function isCleaningClientUser(customer) {
+  return hasRole(customer, 'cleaning_client');
+}
+
+export function isCleaningStaffUser(customer) {
+  return hasRole(customer, 'cleaning_staff');
 }
 
 export function getUserKey(customer) {
@@ -302,6 +318,7 @@ export const initialUserForm = {
   email: '',
   firstName: '',
   lastName: '',
+  role: 'USER',
 };
 
 export function getProductEditBase(product) {

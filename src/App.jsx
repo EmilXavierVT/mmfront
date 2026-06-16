@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
-import { getStoredUser, logout } from './api/client.js';
+import { getStoredUser, logout, setStoredUser } from './api/client.js';
 import { productApi } from './api/products.js';
 import { AuthModal } from './components/Auth/AuthModal.jsx';
+import { Employee } from './components/Employee/Employee.jsx';
 import { About } from './components/Marketing/About.jsx';
 import { Admin } from './components/Admin/Admin.jsx';
 import { BigCTA } from './components/Marketing/BigCTA.jsx';
@@ -32,6 +33,7 @@ const ROUTES = {
   '/cleaning': 'cleaning',
   '/about': 'about',
   '/profile': 'profile',
+  '/employee': 'employee',
   '/admin': 'admin',
 };
 
@@ -41,8 +43,36 @@ const PAGE_PATHS = {
   cleaning: '/cleaning',
   about: '/about',
   profile: '/profile',
+  employee: '/employee',
   admin: '/admin',
 };
+
+function isEmployeeRole(role) {
+  return role === 'EMPLOYEE' || role === 'CLEANING_STAFF';
+}
+
+function getUserRoles(user) {
+  const values = Array.isArray(user?.roles) && user.roles.length
+    ? user.roles
+    : user?.role
+      ? [user.role]
+      : [];
+
+  return values
+    .flatMap(value => String(value || '').split(','))
+    .map(value => value.trim().replace(/^ROLE_/i, '').toUpperCase())
+    .filter(Boolean);
+}
+
+function hasUserRole(user, expectedRole) {
+  return getUserRoles(user).includes(expectedRole);
+}
+
+function getUserHomePage(user) {
+  if (hasUserRole(user, 'ADMIN')) return 'admin';
+  if (getUserRoles(user).some(isEmployeeRole)) return 'employee';
+  return 'profile';
+}
 
 function Page({ children }) {
   return <div className="page">{children}</div>;
@@ -75,14 +105,26 @@ function AdminPage({
   );
 }
 
-function ProfilePage({ user, onBook, onLogout }) {
+function ProfilePage({ user, onBook, onLogout, onUserUpdated }) {
   if (!user) {
     return <Navigate to="/" replace />;
   }
 
   return (
     <Page>
-      <Profile user={user} onBook={onBook} onLogout={onLogout} />
+      <Profile user={user} onBook={onBook} onLogout={onLogout} onUserUpdated={onUserUpdated} />
+    </Page>
+  );
+}
+
+function EmployeePage({ user, onLogout, onUserUpdated }) {
+  if (!user || !getUserRoles(user).some(isEmployeeRole)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <Page>
+      <Employee user={user} onLogout={onLogout} onUserUpdated={onUserUpdated} />
     </Page>
   );
 }
@@ -226,7 +268,8 @@ export default function App() {
     () => products.filter((product) => Number(product.type) === CLEANING_PRODUCT_TYPE),
     [products],
   );
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasUserRole(user, 'ADMIN');
+  const accountPage = getUserHomePage(user);
 
   const loadProducts = useCallback(async () => {
     setProductsLoading(true);
@@ -329,6 +372,11 @@ export default function App() {
     setAuthOpen(true);
   };
 
+  const handleUserUpdated = useCallback((nextUser) => {
+    setUser(nextUser);
+    setStoredUser(nextUser);
+  }, []);
+
   const scrollToBook = (page = 'home') => {
     const path = PAGE_PATHS[page] || PAGE_PATHS.home;
 
@@ -353,6 +401,7 @@ export default function App() {
       <Topbar
         user={user}
         isAdmin={isAdmin}
+        accountPath={PAGE_PATHS[accountPage] || PAGE_PATHS.profile}
         onAccount={() => openAuth()}
       />
       <Routes>
@@ -372,7 +421,11 @@ export default function App() {
         />
         <Route
           path="/profile"
-          element={<ProfilePage user={user} onBook={scrollToBook} onLogout={handleLogout} />}
+          element={<ProfilePage user={user} onBook={scrollToBook} onLogout={handleLogout} onUserUpdated={handleUserUpdated} />}
+        />
+        <Route
+          path="/employee"
+          element={<EmployeePage user={user} onLogout={handleLogout} onUserUpdated={handleUserUpdated} />}
         />
         <Route
           path="/about"
@@ -447,7 +500,7 @@ export default function App() {
           onClose={() => setAuthOpen(false)}
           onAuthenticated={(nextUser) => {
             setUser(nextUser);
-            navigateTo(nextUser?.role === 'ADMIN' ? 'admin' : 'profile');
+            navigateTo(getUserHomePage(nextUser));
             window.scrollTo({ top: 0, behavior: 'smooth' });
             showToast('Logged in');
           }}

@@ -12,6 +12,7 @@ const PAGE_PATHS = {
   cleaning: '/cleaning',
   about: '/about',
   profile: '/profile',
+  employee: '/employee',
   admin: '/admin',
 };
 
@@ -71,6 +72,12 @@ const SEO_CONTENT = {
     title: 'Profile | Morgendagens Måltid',
     description: 'View your Morgendagens Måltid booking requests and account details.',
     keywords: 'Morgendagens Måltid profile',
+    robots: 'noindex,nofollow',
+  },
+  employee: {
+    title: 'Employee | Morgendagens Måltid',
+    description: 'Morgendagens Måltid employee area.',
+    keywords: 'Morgendagens Måltid employee',
     robots: 'noindex,nofollow',
   },
   admin: {

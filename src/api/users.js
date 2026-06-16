@@ -2,6 +2,7 @@ import { apiRequest } from './client.js';
 
 export const userApi = {
   getAll: () => apiRequest('/user/all'),
+  getById: (id) => apiRequest(`/user/${id}`),
   register: (credentials) => apiRequest('/auth/register', {
     method: 'POST',
     body: JSON.stringify(credentials),
@@ -12,5 +13,9 @@ export const userApi = {
   }),
   setAdmin: (id) => apiRequest(`/user/${id}/admin`, {
     method: 'PUT',
+  }),
+  setEmployee: (id, user) => apiRequest(`/user/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(user),
   }),
 };

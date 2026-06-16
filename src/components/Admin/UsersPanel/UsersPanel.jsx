@@ -1,5 +1,5 @@
 import { Icon } from '../../Shared/Icon.jsx';
-import { formatDate, getStatus, getType, isAdminUser } from '../adminUtils.js';
+import { formatDate, getStatus, getType, isAdminUser, isEmployeeUser } from '../adminUtils.js';
 
 export function UsersPanel({
   customers,
@@ -21,6 +21,7 @@ export function UsersPanel({
   onSearchChange,
   onSelectCustomer,
   onMakeAdmin,
+  onMakeEmployee,
 }) {
   return (
         <section className="profile-requests admin-customers">
@@ -84,7 +85,19 @@ export function UsersPanel({
             <div className="field-row compact">
               <div className="field">
                 <label>Password</label>
-                <input value="changeme" readOnly />
+                <input value="ChangeMe!" readOnly />
+              </div>
+              <div className="field">
+                <label>Role</label>
+                <select
+                  value={userForm.role}
+                  onChange={event => onUpdateUserField('role', event.target.value)}
+                >
+                  <option value="USER">User</option>
+                  <option value="CLEANING_CLIENT">Cleaning customer</option>
+                  <option value="EMPLOYEE">Employee</option>
+                  <option value="CLEANING_STAFF">Cleaning staff</option>
+                </select>
               </div>
               <div className="admin-product-submit">
                 <button className="btn btn-blue" type="submit" disabled={userSaving}>
@@ -159,6 +172,17 @@ export function UsersPanel({
                                 ? 'Loading'
                                 : `${selectedCustomerRequestsState.items.length} request${selectedCustomerRequestsState.items.length === 1 ? '' : 's'}`}
                             </div>
+                            {!isEmployeeUser(selectedCustomer) && (
+                              <button
+                                className="btn btn-ghost"
+                                type="button"
+                                onClick={() => onMakeEmployee(selectedCustomer)}
+                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                              >
+                                {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make employee'}
+                                <Icon name="check" size={18} />
+                              </button>
+                            )}
                             {!isAdminUser(selectedCustomer) && (
                               <button
                                 className="btn btn-blue"

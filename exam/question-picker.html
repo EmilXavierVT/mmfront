@@ -77,6 +77,52 @@
         margin: 14px 0 18px;
       }
 
+      .question-search {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .search-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .search-input {
+        flex: 1 1 240px;
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        color: var(--text);
+        background: #fff;
+      }
+
+      .search-input:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.18);
+        border-color: var(--accent);
+      }
+
+      .search-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .question-search-empty {
+        padding: 16px;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        color: var(--muted);
+        background: #fcfcfd;
+      }
+
       button {
         border: 1px solid var(--border);
         background: #fff;
@@ -1058,6 +1104,7 @@
       const nextSlideButton = document.getElementById('next-slide');
       const exitPresentationButton = document.getElementById('exit-presentation');
       const REFERENCE_SNIPPETS = window.REFERENCE_SNIPPETS || {};
+      const totalQuestionCount = categories.reduce((count, category) => count + category.items.length, 0);
       let currentSlideIndex = 0;
 
       function escapeHtml(value) {
@@ -1111,6 +1158,10 @@
       function renderBulletList(text, className = '') {
         const bullets = splitIntoBullets(text);
         return `<ul class="bullet-list ${className}">${bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+      }
+
+      function normalizeSearch(value) {
+        return String(value).trim().toLowerCase();
       }
 
       function getSlides() {
@@ -1231,27 +1282,51 @@
       }
 
       function renderQuestions() {
-        questionPanel.innerHTML = categories.map((category) => `
-          <section class="category" data-category="${category.id}" data-collapsed="false">
-            <div class="category-head">
-              <button type="button" class="category-title" data-category-toggle="${category.id}" aria-expanded="true">
-                <span class="category-toggle" aria-hidden="true">▾</span>
-                <span>
-                  <h3>${category.title}</h3>
-                  <span class="muted">${category.intro}</span>
-                </span>
-              </button>
+        questionPanel.innerHTML = `
+          <div class="question-search">
+            <div class="search-row">
+              <input
+                type="search"
+                class="search-input"
+                id="question-search-input"
+                placeholder="Search questions, topics, answers, or file refs"
+                aria-label="Search exam questions"
+              />
+              <button type="button" class="secondary" id="clear-question-search">Clear</button>
             </div>
-            <div class="question-list">
-              ${category.items.map((item) => `
-                <label class="question">
-                  <input type="checkbox" data-question data-id="${item.id}" data-category-id="${category.id}" />
-                  <span>${item.question}</span>
-                </label>
-              `).join('')}
+            <div class="search-meta">
+              <span id="search-match-count">Showing all ${totalQuestionCount} questions</span>
+              <span>Searches across category, question, answer, oral version, and references</span>
             </div>
-          </section>
-        `).join('');
+            <div class="question-search-empty" id="question-search-empty" hidden>No matching questions found.</div>
+          </div>
+          ${categories.map((category) => `
+            <section class="category" data-category="${category.id}" data-collapsed="false">
+              <div class="category-head">
+                <button type="button" class="category-title" data-category-toggle="${category.id}" aria-expanded="true">
+                  <span class="category-toggle" aria-hidden="true">▾</span>
+                  <span>
+                    <h3>${category.title}</h3>
+                    <span class="muted">${category.intro}</span>
+                  </span>
+                </button>
+              </div>
+              <div class="question-list">
+                ${category.items.map((item) => `
+                  <label class="question" data-search-text="${escapeHtml(normalizeSearch([category.title, category.intro, item.question, item.answer, item.oral, item.refs.join(' ')].join(' ')))}">
+                    <input type="checkbox" data-question data-id="${item.id}" data-category-id="${category.id}" />
+                    <span>${item.question}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </section>
+          `).join('')}
+        `;
+
+        const searchInput = document.getElementById('question-search-input');
+        const clearButton = document.getElementById('clear-question-search');
+        const matchCount = document.getElementById('search-match-count');
+        const emptyState = document.getElementById('question-search-empty');
 
         questionPanel.querySelectorAll('input[data-question]').forEach((input) => {
           syncQuestionState(input);
@@ -1264,6 +1339,42 @@
         questionPanel.querySelectorAll('[data-category-toggle]').forEach((button) => {
           button.addEventListener('click', () => toggleCategory(button.dataset.categoryToggle));
         });
+
+        function applyQuestionSearch() {
+          const query = normalizeSearch(searchInput.value);
+          let visibleCount = 0;
+
+          questionPanel.querySelectorAll('.category').forEach((category) => {
+            const questions = Array.from(category.querySelectorAll('.question'));
+            let categoryVisibleCount = 0;
+
+            questions.forEach((question) => {
+              const matches = !query || question.dataset.searchText.includes(query);
+              question.hidden = !matches;
+              if (matches) {
+                categoryVisibleCount += 1;
+              }
+            });
+
+            category.hidden = categoryVisibleCount === 0;
+            visibleCount += categoryVisibleCount;
+          });
+
+          emptyState.hidden = visibleCount !== 0;
+          matchCount.textContent = query
+            ? `Showing ${visibleCount} of ${totalQuestionCount} questions`
+            : `Showing all ${totalQuestionCount} questions`;
+          clearButton.disabled = !query;
+        }
+
+        searchInput.addEventListener('input', applyQuestionSearch);
+        clearButton.addEventListener('click', () => {
+          searchInput.value = '';
+          applyQuestionSearch();
+          searchInput.focus();
+        });
+
+        applyQuestionSearch();
       }
 
       function toggleCategory(categoryId) {

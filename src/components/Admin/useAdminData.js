@@ -94,7 +94,35 @@ export function useAdminRequests() {
   }, []);
 
   useEffect(() => {
-    loadRequests({ resetDerivedErrors: false });
+    let ignore = false;
+
+    async function initializeRequests() {
+      if (!ignore) {
+        setRequestsLoading(true);
+        setRequestsError('');
+      }
+
+      try {
+        const data = await quoteRequestApi.getAll();
+        if (!ignore) {
+          setRequests(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setRequestsError(err.message || 'Could not load requests.');
+        }
+      } finally {
+        if (!ignore) {
+          setRequestsLoading(false);
+        }
+      }
+    }
+
+    initializeRequests();
+
+    return () => {
+      ignore = true;
+    };
   }, [loadRequests]);
 
   useEffect(() => {

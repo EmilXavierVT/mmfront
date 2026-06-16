@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { quoteRequestApi } from '../../api/requests.js';
+import { ChangePasswordPanel } from '../Auth/ChangePasswordPanel.jsx';
+import { AccountDetailsPanel } from './AccountDetailsPanel.jsx';
+import { CleaningClientProfile } from './CleaningClientProfile.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 import { RequestList } from './RequestList.jsx';
 
-export function Profile({ user, onBook, onLogout }) {
+function StandardProfile({ user, onBook, onLogout, onUserUpdated }) {
   const [requests, setRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState('');
@@ -59,24 +62,7 @@ export function Profile({ user, onBook, onLogout }) {
       </section>
 
       <section className="profile-grid">
-        <div className="profile-panel">
-          <span>Account</span>
-          <h2>Your details</h2>
-          <dl>
-            <div>
-              <dt>Email</dt>
-              <dd>{user?.email}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>Logged in</dd>
-            </div>
-            <div>
-              <dt>ID</dt>
-              <dd>{id || 'Not available'}</dd>
-            </div>
-          </dl>
-        </div>
+        <AccountDetailsPanel user={user} onUserUpdated={onUserUpdated} />
 
         <div className="profile-panel accent">
           <span>Next</span>
@@ -86,6 +72,10 @@ export function Profile({ user, onBook, onLogout }) {
             Book now <Icon name="arrow" size={18} />
           </button>
         </div>
+      </section>
+
+      <section className="profile-grid profile-account-grid">
+        <ChangePasswordPanel />
       </section>
 
       <section className="profile-requests">
@@ -127,4 +117,17 @@ export function Profile({ user, onBook, onLogout }) {
       </section>
     </main>
   );
+}
+
+export function Profile({ user, onBook, onLogout, onUserUpdated }) {
+  const userRoles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
+    .flatMap(value => String(value || '').split(','))
+    .map(value => value.trim().replace(/^ROLE_/i, '').toUpperCase())
+    .filter(Boolean);
+
+  if (userRoles.includes('CLEANING_CLIENT')) {
+    return <CleaningClientProfile user={user} onLogout={onLogout} onUserUpdated={onUserUpdated} />;
+  }
+
+  return <StandardProfile user={user} onBook={onBook} onLogout={onLogout} onUserUpdated={onUserUpdated} />;
 }

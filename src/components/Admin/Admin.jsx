@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { emailApi } from '../../api/email.js';
 import { productApi } from '../../api/products.js';
 import { quoteRequestApi } from '../../api/requests.js';
 import { userApi } from '../../api/users.js';
@@ -36,6 +37,99 @@ import {
   isUnanswered,
   summarizeCustomerRequests,
 } from './adminUtils.js';
+
+const APP_URL = 'https://morgendagensmaaltid.dk';
+const EMAIL_LOGO_URL = `${APP_URL}/fistIcon.png`;
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getRoleLabel(role) {
+  if (role === 'CLEANING_CLIENT') return 'cleaning customer';
+  if (role === 'EMPLOYEE') return 'employee';
+  if (role === 'CLEANING_STAFF') return 'employee';
+  if (role === 'ADMIN') return 'admin';
+  return 'user';
+}
+
+function getRolesForNewUser(role) {
+  return Array.from(new Set(['USER', role].filter(Boolean)));
+}
+
+function buildAdminCreatedUserEmail({ email, firstName, role, password }) {
+  const safeFirstName = escapeHtml(firstName || 'there');
+  const safeEmail = escapeHtml(email);
+  const safeRole = escapeHtml(getRoleLabel(role));
+  const safePassword = escapeHtml(password);
+  const isCleaningCustomer = role === 'CLEANING_CLIENT';
+  const subject = isCleaningCustomer
+    ? 'Welcome to Morgendagens Maaltid Cleaning'
+    : 'Your Morgendagens Maaltid account is ready';
+  const intro = isCleaningCustomer
+    ? 'Welcome to Morgendagens Maaltid Cleaning. Your personal account has been created and is ready to use.'
+    : `An administrator created a new ${safeRole} account for you at Morgendagens Maaltid.`;
+  const guidance = isCleaningCustomer
+    ? 'You can use your account to stay in touch with us and manage your cleaning-related details and tell us when you go on vacation. We recommend changing your password after your first login.'
+    : 'Use the login details below to sign in. We recommend changing your password after your first login.';
+
+  return {
+    subject,
+    body: `
+      <div style="background:#f3f4f6;padding:24px 12px;font-family:Arial,sans-serif;color:#111827;">
+        <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden;">
+          <div style="background:#1A171B;padding:28px 24px;color:#ffffff;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <tr>
+                <td style="vertical-align:middle;width:76px;border:0;">
+                  <img src="${EMAIL_LOGO_URL}" width="64" height="64" alt="Morgendagens Maaltid" style="display:block;border:0;outline:none;text-decoration:none;width:64px;height:64px;object-fit:contain;" />
+                </td>
+                <td style="vertical-align:middle;">
+                  <div style="font-size:13px;letter-spacing:1.6px;text-transform:uppercase;color:#d1d5db;font-weight:700;">Morgendagens Maaltid</div>
+                  <h1 style="margin:8px 0 0;font-size:28px;line-height:1.1;color:#ffffff;">Your account is ready</h1>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="padding:28px 24px;">
+            <p style="margin:0 0 16px;font-size:16px;color:#374151;">Hi ${safeFirstName},</p>
+            <p style="margin:0 0 16px;font-size:16px;color:#374151;">${intro}</p>
+            <p style="margin:0 0 24px;font-size:16px;color:#374151;">${guidance}</p>
+
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+              <tbody>
+                <tr>
+                  <th style="text-align:left;padding:12px 14px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:600;width:34%;">Email</th>
+                  <td style="padding:12px 14px;border-bottom:1px solid #e5e7eb;color:#111827;">${safeEmail}</td>
+                </tr>
+                <tr>
+                  <th style="text-align:left;padding:12px 14px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:600;width:34%;">Role</th>
+                  <td style="padding:12px 14px;border-bottom:1px solid #e5e7eb;color:#111827;text-transform:capitalize;">${safeRole}</td>
+                </tr>
+                <tr>
+                  <th style="text-align:left;padding:12px 14px;color:#6b7280;font-weight:600;width:34%;">Temporary password</th>
+                  <td style="padding:12px 14px;color:#111827;font-weight:700;">${safePassword}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style="margin-top:24px;">
+              <a href="${APP_URL}" style="display:inline-block;background:#0496ff;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 20px;border-radius:10px;">Open Morgendagens Maaltid</a>
+            </div>
+
+            <p style="margin:24px 0 0;font-size:14px;color:#6b7280;">If you were not expecting this account, please contact Morgendagens Maaltid.</p>
+          </div>
+        </div>
+      </div>
+    `,
+  };
+}
 
 export function Admin({
   user,
@@ -302,7 +396,10 @@ export function Admin({
     const email = userForm.email.trim();
     const firstName = userForm.firstName.trim();
     const lastName = userForm.lastName.trim();
-    const password = 'change me';
+    const role = String(userForm.role || 'USER').toUpperCase();
+    const roles = getRolesForNewUser(role);
+    const roleLabel = getRoleLabel(role);
+    const password = 'ChangeMe!';
 
     if (!email || !firstName || !lastName) {
       setUserError('Add email, first name, and last name.');
@@ -334,6 +431,7 @@ export function Admin({
         email,
         firstName,
         lastName,
+        roles,
       });
       const refreshedUsers = await userApi.getAll();
       const refreshedUser = Array.isArray(refreshedUsers)
@@ -343,11 +441,56 @@ export function Admin({
       setUsers(Array.isArray(refreshedUsers) ? refreshedUsers : nextUsers);
       setSelectedCustomerKey(getUserKey(refreshedUser || { id: createdUserId, email }));
       setUserForm(initialUserForm);
-      setUserSuccess(`${firstName} ${lastName} was added. Temporary password: ${password}`);
+
+      const accountEmail = buildAdminCreatedUserEmail({
+        email,
+        firstName,
+        role,
+        password,
+      });
+
+      try {
+        await emailApi.send({
+          to: email,
+          subject: accountEmail.subject,
+          body: accountEmail.body,
+          html: true,
+        });
+        setUserSuccess(`${firstName} ${lastName} was added as ${roleLabel}. Temporary password: ${password}. Email sent.`);
+      } catch (emailError) {
+        setUserSuccess(`${firstName} ${lastName} was added as ${roleLabel}. Temporary password: ${password}. Email could not be sent: ${emailError.message || 'unknown error'}`);
+      }
     } catch (err) {
       setUserError(err.message || 'Could not add user.');
     } finally {
       setUserSaving(false);
+    }
+  };
+
+  const makeUserEmployee = async (selectedUser) => {
+    if (!selectedUser?.id || settingAdminUserId) return;
+
+    setSettingAdminUserId(selectedUser.id);
+    setUserError('');
+    setUserSuccess('');
+
+    try {
+      await userApi.setEmployee(selectedUser.id, {
+        ...selectedUser.raw,
+        id: selectedUser.id,
+        email: selectedUser.email,
+        firstName: selectedUser.firstName,
+        lastName: selectedUser.lastName,
+        roles: ['USER', 'EMPLOYEE'],
+      });
+      const refreshedUsers = await userApi.getAll();
+      setUsers(Array.isArray(refreshedUsers) ? refreshedUsers : users);
+      setSelectedCustomerKey(selectedUser.key);
+      setUserSuccess(`${selectedUser.email} is now an employee.`);
+    } catch (err) {
+      setUserError(err.message || 'Could not make user employee.');
+    } finally {
+      setSettingAdminUserId(null);
     }
   };
 
@@ -533,6 +676,7 @@ export function Admin({
           onSearchChange={setCustomerSearch}
           onSelectCustomer={setSelectedCustomerKey}
           onMakeAdmin={makeUserAdmin}
+          onMakeEmployee={makeUserEmployee}
         />
       )}
 
