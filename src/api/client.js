@@ -1,6 +1,4 @@
-const REMOTE_API_BASE_URL = import.meta.env.REMOTE_API_BASE_URL;
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-  || (import.meta.env.DEV ? '/api' : REMOTE_API_BASE_URL);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const TOKEN_STORAGE_KEY = 'mm_api_token';
 const USER_STORAGE_KEY = 'mm_api_user';
