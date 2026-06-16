@@ -110,8 +110,8 @@ function dedupeRoles(roles) {
 
 function getPrimaryRole(roles) {
   if (roles.includes('ADMIN')) return 'ADMIN';
-  if (roles.includes('EMPLOYEE')) return 'EMPLOYEE';
   if (roles.includes('CLEANING_STAFF')) return 'CLEANING_STAFF';
+  if (roles.includes('EMPLOYEE')) return 'EMPLOYEE';
   if (roles.includes('CLEANING_CLIENT')) return 'CLEANING_CLIENT';
   return roles[0] || '';
 }
