@@ -50,6 +50,7 @@ function buildInitialForm(cleaningClients, dateKey = '') {
     durationMinutes: '120',
     vacation: false,
     repeatWeekly: false,
+    recurrenceIntervalWeeks: '1',
     recurrenceWeeks: '1',
   };
 }
@@ -96,10 +97,13 @@ function buildCleaningClientSummaries(users) {
     .sort((a, b) => getClientName(a).localeCompare(getClientName(b)));
 }
 
-function buildRecurringTimes(appointmentTime, recurrenceWeeks) {
+function buildRecurringTimes(appointmentTime, recurrenceWeeks, recurrenceIntervalWeeks = 1) {
   const times = [appointmentTime];
   const totalWeeks = Number(recurrenceWeeks);
   if (!Number.isInteger(totalWeeks) || totalWeeks <= 1) return times;
+
+  const intervalWeeks = Number(recurrenceIntervalWeeks);
+  if (!Number.isInteger(intervalWeeks) || intervalWeeks < 1) return times;
 
   const startDate = new Date(appointmentTime);
   if (Number.isNaN(startDate.getTime())) {
@@ -108,7 +112,7 @@ function buildRecurringTimes(appointmentTime, recurrenceWeeks) {
 
   for (let weekIndex = 1; weekIndex < totalWeeks; weekIndex += 1) {
     const nextDate = new Date(startDate);
-    nextDate.setDate(nextDate.getDate() + weekIndex * 7);
+    nextDate.setDate(nextDate.getDate() + weekIndex * 7 * intervalWeeks);
     times.push(toInputDateTime(nextDate));
   }
 
@@ -274,6 +278,7 @@ export function CleaningSchedulePanel({ user }) {
       durationMinutes: String(appointment.durationMinutes || 120),
       vacation: Boolean(appointment.vacation),
       repeatWeekly: false,
+      recurrenceIntervalWeeks: '1',
       recurrenceWeeks: '1',
     });
   }
@@ -331,6 +336,11 @@ export function CleaningSchedulePanel({ user }) {
     }
 
     if (!appointmentForm.id && appointmentForm.repeatWeekly) {
+      const recurrenceIntervalWeeks = Number(appointmentForm.recurrenceIntervalWeeks);
+      if (![1, 2].includes(recurrenceIntervalWeeks)) {
+        return 'Choose weekly or bi-weekly recurrence.';
+      }
+
       const recurrenceWeeks = Number(appointmentForm.recurrenceWeeks);
       if (!Number.isInteger(recurrenceWeeks) || recurrenceWeeks < 1) {
         return 'Add a valid number of weeks for the weekly recurrence.';
@@ -357,7 +367,11 @@ export function CleaningSchedulePanel({ user }) {
     try {
       const appointmentTimes = appointmentForm.id || !appointmentForm.repeatWeekly
         ? [appointmentForm.appointmentTime]
-        : buildRecurringTimes(appointmentForm.appointmentTime, appointmentForm.recurrenceWeeks);
+        : buildRecurringTimes(
+          appointmentForm.appointmentTime,
+          appointmentForm.recurrenceWeeks,
+          appointmentForm.recurrenceIntervalWeeks,
+        );
 
       const payloads = appointmentTimes.map((appointmentTime) => ({
         cleaningClientId: Number(appointmentForm.cleaningClientId),
@@ -547,7 +561,7 @@ export function CleaningSchedulePanel({ user }) {
                 <p>
                   {appointmentForm.id
                     ? 'Update the selected appointment or delete it if it should be removed.'
-                    : 'Create one visit or repeat the same visit every week for a chosen number of weeks.'}
+                    : 'Create one visit or repeat the same visit weekly or bi-weekly for a chosen number of weeks.'}
                 </p>
               </div>
               {appointmentForm.id && (
@@ -619,6 +633,18 @@ export function CleaningSchedulePanel({ user }) {
                   />
                   <span>Repeat weekly</span>
                 </label>
+
+                <div className="field employee-cleaning-end-date">
+                  <label>Repeat interval</label>
+                  <select
+                    value={appointmentForm.recurrenceIntervalWeeks}
+                    onChange={(event) => updateAppointmentField('recurrenceIntervalWeeks', event.target.value)}
+                    disabled={!appointmentForm.repeatWeekly}
+                  >
+                    <option value="1">Weekly</option>
+                    <option value="2">Bi-weekly</option>
+                  </select>
+                </div>
 
                 <div className="field employee-cleaning-end-date">
                   <label>Number of weeks</label>
