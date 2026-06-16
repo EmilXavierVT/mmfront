@@ -16,6 +16,6 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY package*.json ./
 
-EXPOSE 4173
+EXPOSE 5173
 
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "4173"]
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
