@@ -8,7 +8,7 @@ export function Testimonials() {
   return (
     <section className="section">
       <div className="section-eyebrow">What people say</div>
-      <h2 className="section-title">Loved by people<br/>with <span className="pink">strong opinions</span>.</h2>
+      <h2 className="section-title">Trusted by hosts<br/>with <span className="pink">high standards</span>.</h2>
       <div className="testimonials">
         {testimonials.map((t) => (
           <div className="testimonial" key={`${t.who}-${t.what}`}>
