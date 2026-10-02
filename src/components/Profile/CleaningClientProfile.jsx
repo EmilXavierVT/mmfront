@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cleaningAppointmentApi } from '../../api/cleaningAppointments.js';
+import { subscriptionDealApi } from '../../api/subscriptionDeals.js';
 import { userApi } from '../../api/users.js';
-import { formatCalendarDay, formatCalendarMonth, formatDate, getDateKey, getMonthDays, getUserEmail, getUserFirstName, getUserId, getUserLastName } from '../Admin/adminUtils.js';
+import { formatCalendarDay, formatCalendarMonth, formatDate, getDateKey, getMonthDays, getUserEmail, getUserFirstName, getUserId, getUserLastName, isCleaningStaffUser } from '../Admin/adminUtils.js';
 import { ChangePasswordPanel } from '../Auth/ChangePasswordPanel.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 import { AccountDetailsPanel } from './AccountDetailsPanel.jsx';
 
 const DURATION_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
+const FLEX_DURATION_OPTIONS = DURATION_OPTIONS.filter((minutes) => minutes >= 120);
+const WORKDAY_START_HOUR = 8;
+const WORKDAY_END_HOUR = 17;
 
 function pad(part) {
   return String(part).padStart(2, '0');
@@ -38,6 +42,10 @@ function getNowInputValue() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
+function getNowApiDateTime() {
+  return toApiDateTime(getNowInputValue());
+}
+
 function formatTimeOnly(value) {
   if (!value) return 'No time';
 
@@ -62,12 +70,18 @@ function formatDuration(minutes) {
   return `${hours}h ${remainder} min`;
 }
 
+function parseOptionalId(value) {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 function normalizeAppointment(appointment) {
   return {
     ...appointment,
-    id: Number(appointment?.id),
-    cleaningClientId: Number(appointment?.cleaningClientId),
-    cleaningStaffId: Number(appointment?.cleaningStaffId),
+    id: parseOptionalId(appointment?.id),
+    cleaningClientId: parseOptionalId(appointment?.cleaningClientId),
+    cleaningStaffId: parseOptionalId(appointment?.cleaningStaffId),
     durationMinutes: Number(appointment?.durationMinutes) || 0,
     cancellationTime: appointment?.cancellationTime || null,
     vacation: Boolean(appointment?.vacation),
@@ -79,6 +93,80 @@ function canManageAppointment(appointmentTime) {
   if (Number.isNaN(appointmentDate.getTime())) return false;
 
   return appointmentDate.getTime() - Date.now() >= 7 * 24 * 60 * 60 * 1000;
+}
+
+function canRescheduleAppointment(appointmentTime) {
+  const appointmentDate = new Date(appointmentTime);
+  if (Number.isNaN(appointmentDate.getTime())) return false;
+
+  return appointmentDate.getTime() - Date.now() >= 4 * 24 * 60 * 60 * 1000;
+}
+
+function getUserRoles(user) {
+  return [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
+    .flatMap(value => String(value || '').split(','))
+    .map(value => value.trim().replace(/^ROLE_/i, '').toUpperCase())
+    .filter(Boolean);
+}
+
+function getCancellationChargeMessage(appointmentTime) {
+  const appointmentDate = new Date(appointmentTime);
+  if (Number.isNaN(appointmentDate.getTime())) return '';
+
+  const hoursUntilAppointment = (appointmentDate.getTime() - Date.now()) / (60 * 60 * 1000);
+  if (hoursUntilAppointment < 24) return 'Calling in sick now means 100% charge applies.';
+  if (hoursUntilAppointment < 48) return 'Calling in sick now means 50% charge applies.';
+  return '';
+}
+
+function appointmentsOverlap(startA, durationA, startB, durationB) {
+  const aStart = new Date(startA).getTime();
+  const bStart = new Date(startB).getTime();
+  if (Number.isNaN(aStart) || Number.isNaN(bStart)) return false;
+
+  const aEnd = aStart + Number(durationA || 0) * 60 * 1000;
+  const bEnd = bStart + Number(durationB || 0) * 60 * 1000;
+  return aStart < bEnd && bStart < aEnd;
+}
+
+function buildDaySlotTime(dateKey, hour, minute) {
+  return `${dateKey}T${pad(hour)}:${pad(minute)}`;
+}
+
+function getAppointmentLabel(appointment) {
+  if (appointment?.cancellationTime) return 'Sick';
+  if (appointment?.vacation) return 'Vacation';
+  return 'Cleaning visit';
+}
+
+function normalizeListResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.content)) return data.content;
+  if (data && typeof data === 'object') {
+    const nestedList = Object.values(data).find(Array.isArray);
+    if (nestedList) return nestedList;
+    if (data.id != null) return [data];
+  }
+  return [];
+}
+
+function getSubscriptionDealUserId(deal) {
+  return deal?.userId
+    ?? deal?.userDTO?.id
+    ?? deal?.user?.id
+    ?? deal?.cleaningClientId
+    ?? deal?.cleaningClientDTO?.id
+    ?? null;
+}
+
+function getSubscriptionDealVisitsPerMonth(deal) {
+  return deal?.visitsPerMonth
+    ?? deal?.visits_per_month
+    ?? deal?.monthlyVisits
+    ?? deal?.visits
+    ?? null;
 }
 
 function isWithinLastYear(value, referenceDate = new Date()) {
@@ -111,18 +199,23 @@ function getCancellationTone(cancellationTime) {
   return 'normal';
 }
 
-function buildCreateForm(dateKey = '') {
+function buildCreateForm() {
   return {
-    appointmentTime: `${dateKey || getDateKey(new Date())}T09:00`,
+    appointmentTime: '',
     durationMinutes: '120',
   };
 }
 
 export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
   const userId = Number(user?.id || user?.userId);
+  const userRoles = useMemo(() => getUserRoles(user), [user]);
+  const isSubscriber = userRoles.includes('SUBSCRIBER');
+  const isFlex = userRoles.includes('FLEX') || !isSubscriber;
   const [activeTab, setActiveTab] = useState('calendar');
   const [appointments, setAppointments] = useState([]);
+  const [allAppointments, setAllAppointments] = useState([]);
   const [users, setUsers] = useState([]);
+  const [subscriptionDeal, setSubscriptionDeal] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -133,11 +226,16 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
   const [appointmentTimeInput, setAppointmentTimeInput] = useState('');
   const [createForm, setCreateForm] = useState(() => buildCreateForm(getDateKey(new Date())));
 
-  const tabs = [
-    ['calendar', 'Calendar'],
-    ['vacation', 'Vacation'],
-    ['profile', 'Profile'],
-  ];
+  const tabs = isSubscriber
+    ? [
+      ['calendar', 'Calendar'],
+      ['vacation', 'Vacation'],
+      ['profile', 'Profile'],
+    ]
+    : [
+      ['calendar', 'Calendar'],
+      ['profile', 'Profile'],
+    ];
 
   const staffById = useMemo(() => (
     Object.fromEntries((Array.isArray(users) ? users : []).map((staffUser) => [String(getUserId(staffUser)), {
@@ -146,6 +244,18 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
       firstName: getUserFirstName(staffUser),
       lastName: getUserLastName(staffUser),
     }]))
+  ), [users]);
+
+  const cleaningStaff = useMemo(() => (
+    (Array.isArray(users) ? users : [])
+      .filter(isCleaningStaffUser)
+      .map((staffUser) => ({
+        id: getUserId(staffUser),
+        email: getUserEmail(staffUser),
+        firstName: getUserFirstName(staffUser),
+        lastName: getUserLastName(staffUser),
+      }))
+      .filter((staffUser) => staffUser.id)
   ), [users]);
 
   const sortedAppointments = useMemo(
@@ -168,44 +278,79 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
     () => sortedAppointments.find((appointment) => appointment.id === selectedAppointmentId) || null,
     [selectedAppointmentId, sortedAppointments],
   );
-  const selectedDayAppointments = appointmentsByDay[selectedDateKey] || [];
   const recentVacationAppointments = useMemo(
     () => sortedAppointments
       .filter((appointment) => appointment.vacation && isWithinLastYear(appointment.appointmentTime))
       .sort((a, b) => new Date(b.appointmentTime || 0) - new Date(a.appointmentTime || 0)),
     [sortedAppointments],
   );
-  const vacationsRemaining = Math.max(0, 4 - recentVacationAppointments.length);
+  const vacationLimit = isSubscriber ? Number(getSubscriptionDealVisitsPerMonth(subscriptionDeal)) || 0 : 0;
+  const vacationsRemaining = Math.max(0, vacationLimit - recentVacationAppointments.length);
   const vacationEligibleAppointments = useMemo(
-    () => sortedAppointments.filter((appointment) => canManageAppointment(appointment.appointmentTime)),
+    () => sortedAppointments.filter((appointment) => !appointment.cancellationTime && canManageAppointment(appointment.appointmentTime)),
     [sortedAppointments],
   );
 
   function getVacationUsageForAppointment(appointment) {
     const appointmentDate = new Date(appointment?.appointmentTime);
-    if (Number.isNaN(appointmentDate.getTime())) return 4;
+    if (Number.isNaN(appointmentDate.getTime())) return vacationLimit;
 
-    const windowStart = new Date(appointmentDate);
-    windowStart.setFullYear(windowStart.getFullYear() - 1);
+    const vacationDates = sortedAppointments
+      .filter((item) => item?.vacation && item.id !== appointment?.id)
+      .map((item) => new Date(item.appointmentTime))
+      .filter((date) => !Number.isNaN(date.getTime()))
+      .sort((a, b) => a - b);
 
-    return sortedAppointments.filter((item) => {
-      if (!item?.vacation) return false;
-      if (item.id === appointment?.id) return false;
+    const currentWindowAnchor = vacationDates.find((date) => {
+      const windowEnd = new Date(date);
+      windowEnd.setFullYear(windowEnd.getFullYear() + 1);
+      return appointmentDate >= date && appointmentDate < windowEnd;
+    }) || appointmentDate;
 
-      const itemDate = new Date(item.appointmentTime);
-      if (Number.isNaN(itemDate.getTime())) return false;
+    const windowEnd = new Date(currentWindowAnchor);
+    windowEnd.setFullYear(windowEnd.getFullYear() + 1);
 
-      return itemDate >= windowStart && itemDate <= appointmentDate;
-    }).length;
+    return vacationDates.filter((date) => date >= currentWindowAnchor && date < windowEnd).length;
   }
 
   function canSetVacationForAppointment(appointment) {
+    if (!isSubscriber || !vacationLimit) return false;
     if (!appointment) return false;
     if (!canManageAppointment(appointment.appointmentTime)) return false;
+    if (appointment.cancellationTime) return false;
     if (appointment.vacation) return true;
 
-    return getVacationUsageForAppointment(appointment) < 4;
+    return getVacationUsageForAppointment(appointment) < vacationLimit;
   }
+
+  const availableSlots = useMemo(() => {
+    if (!isFlex || !selectedDateKey || !cleaningStaff.length) return [];
+
+    const durationMinutes = Number(createForm.durationMinutes) || 120;
+    const dayStart = new Date(`${selectedDateKey}T${pad(WORKDAY_START_HOUR)}:00`);
+    const dayEnd = new Date(`${selectedDateKey}T${pad(WORKDAY_END_HOUR)}:00`);
+    const slots = [];
+
+    for (let slotStart = new Date(dayStart); slotStart.getTime() + durationMinutes * 60 * 1000 <= dayEnd.getTime(); slotStart.setMinutes(slotStart.getMinutes() + 30)) {
+      const appointmentTime = buildDaySlotTime(selectedDateKey, slotStart.getHours(), slotStart.getMinutes());
+      const availableStaff = cleaningStaff.find((staff) => !allAppointments.some((appointment) => (
+        !appointment.cancellationTime
+        && !appointment.vacation
+        && String(appointment.cleaningStaffId) === String(staff.id)
+        && appointmentsOverlap(appointmentTime, durationMinutes, appointment.appointmentTime, appointment.durationMinutes)
+      )));
+
+      if (availableStaff) {
+        slots.push({
+          appointmentTime,
+          staffId: availableStaff.id,
+          label: formatTimeOnly(appointmentTime),
+        });
+      }
+    }
+
+    return slots;
+  }, [allAppointments, cleaningStaff, createForm.durationMinutes, isFlex, selectedDateKey]);
 
   useEffect(() => {
     if (!userId) return;
@@ -217,21 +362,27 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
       setError('');
 
       try {
-        const [appointmentData, userData] = await Promise.all([
+        const [appointmentData, userData, subscriptionDealData] = await Promise.all([
           cleaningAppointmentApi.getAll(),
           userApi.getAll(),
+          isSubscriber ? subscriptionDealApi.getAll() : Promise.resolve([]),
         ]);
 
         if (ignore) return;
 
-        const nextAppointments = Array.isArray(appointmentData)
-          ? appointmentData
+        const nextAppointmentData = normalizeListResponse(appointmentData);
+        const nextUserData = normalizeListResponse(userData);
+        const nextSubscriptionDealData = normalizeListResponse(subscriptionDealData);
+        const nextAppointments = nextAppointmentData.length
+          ? nextAppointmentData
             .map(normalizeAppointment)
             .filter((appointment) => String(appointment.cleaningClientId) === String(userId))
           : [];
 
+        setAllAppointments(nextAppointmentData.map(normalizeAppointment));
         setAppointments(nextAppointments);
-        setUsers(Array.isArray(userData) ? userData : []);
+        setUsers(nextUserData);
+        setSubscriptionDeal(nextSubscriptionDealData.find((deal) => String(getSubscriptionDealUserId(deal)) === String(userId)) || null);
       } catch (err) {
         if (!ignore) {
           setError(err.message || 'Could not load your cleaning appointments.');
@@ -248,22 +399,30 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
     return () => {
       ignore = true;
     };
-  }, [userId]);
+  }, [isSubscriber, userId]);
 
   useEffect(() => {
     if (!selectedAppointmentId && sortedAppointments.length) {
-      setSelectedAppointmentId(sortedAppointments[0].id);
-      setSelectedDateKey(getDateKey(sortedAppointments[0].appointmentTime));
+      const timeout = window.setTimeout(() => {
+        setSelectedAppointmentId(sortedAppointments[0].id);
+        setSelectedDateKey(getDateKey(sortedAppointments[0].appointmentTime));
+      }, 0);
+
+      return () => window.clearTimeout(timeout);
     }
   }, [selectedAppointmentId, sortedAppointments]);
 
   useEffect(() => {
-    if (!selectedAppointment) {
-      setAppointmentTimeInput('');
-      return;
-    }
+    const timeout = window.setTimeout(() => {
+      if (!selectedAppointment) {
+        setAppointmentTimeInput('');
+        return;
+      }
 
-    setAppointmentTimeInput(toInputDateTime(selectedAppointment.appointmentTime));
+      setAppointmentTimeInput(toInputDateTime(selectedAppointment.appointmentTime));
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [selectedAppointment]);
 
   async function refreshAppointments(successMessage = '') {
@@ -279,6 +438,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
           .map(normalizeAppointment)
           .filter((appointment) => String(appointment.cleaningClientId) === String(userId))
         : [];
+      setAllAppointments(Array.isArray(appointmentData) ? appointmentData.map(normalizeAppointment) : []);
       setAppointments(nextAppointments);
       setSuccess(successMessage);
       return nextAppointments;
@@ -293,8 +453,14 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
   async function handleCreateAppointment(event) {
     event.preventDefault();
 
+    if (!isFlex) {
+      setError('Subscribers cannot create cleaning appointments from the profile.');
+      setSuccess('');
+      return;
+    }
+
     if (!createForm.appointmentTime) {
-      setError('Add an appointment time.');
+      setError('Choose an available time slot.');
       setSuccess('');
       return;
     }
@@ -307,8 +473,15 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
     }
 
     const durationMinutes = Number(createForm.durationMinutes);
-    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0 || durationMinutes % 30 !== 0) {
-      setError('Duration must be in 30 minute increments.');
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 120 || durationMinutes % 30 !== 0) {
+      setError('Duration must be at least 120 minutes in 30 minute increments.');
+      setSuccess('');
+      return;
+    }
+
+    const selectedSlot = availableSlots.find((slot) => slot.appointmentTime === createForm.appointmentTime);
+    if (!selectedSlot) {
+      setError('Choose an available time slot.');
       setSuccess('');
       return;
     }
@@ -320,8 +493,10 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
     try {
       const createdAppointment = await cleaningAppointmentApi.create({
         cleaningClientId: userId,
+        cleaningStaffId: selectedSlot.staffId,
         appointmentTime: toApiDateTime(createForm.appointmentTime),
         durationMinutes,
+        cancellationTime: null,
         vacation: false,
       });
       const nextAppointments = await refreshAppointments('Appointment created.');
@@ -345,10 +520,16 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
     }
   }
 
-  async function updateAppointment(appointment, changes, successMessage, actionName) {
+  async function updateAppointment(appointment, changes, successMessage, actionName, options = {}) {
     if (!appointment?.id) return;
-    if (!canManageAppointment(appointment.appointmentTime)) {
+    if (options.requireVacationWindow && !canManageAppointment(appointment.appointmentTime)) {
       setError('Appointments can only be changed when they are at least one week away.');
+      setSuccess('');
+      return;
+    }
+
+    if (options.requireRescheduleWindow && !canRescheduleAppointment(appointment.appointmentTime)) {
+      setError('Appointments can only be rescheduled when they are at least 4 days away.');
       setSuccess('');
       return;
     }
@@ -364,6 +545,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
         cleaningStaffId: appointment.cleaningStaffId,
         appointmentTime: changes.appointmentTime || appointment.appointmentTime,
         durationMinutes: appointment.durationMinutes,
+        cancellationTime: Object.prototype.hasOwnProperty.call(changes, 'cancellationTime') ? changes.cancellationTime : appointment.cancellationTime,
         vacation: typeof changes.vacation === 'boolean' ? changes.vacation : appointment.vacation,
       });
       await refreshAppointments(successMessage);
@@ -376,25 +558,36 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
 
   async function handleCancelAppointment(appointment) {
     if (!appointment?.id || savingAction) return;
-    if (!window.confirm('Cancel this cleaning appointment?')) return;
+    if (appointment.cancellationTime) {
+      setError('This appointment is already marked as sick.');
+      setSuccess('');
+      return;
+    }
+
+    const chargeMessage = getCancellationChargeMessage(appointment.appointmentTime);
+    const confirmMessage = chargeMessage
+      ? `Call in sick for this cleaning appointment? ${chargeMessage}`
+      : 'Call in sick for this cleaning appointment?';
+    if (!window.confirm(confirmMessage)) return;
 
     setSavingAction(`cancel-${appointment.id}`);
     setError('');
     setSuccess('');
 
     try {
-      const nextAppointments = await cleaningAppointmentApi.delete(appointment.id).then(() => refreshAppointments('Appointment cancelled.'));
-
-      if (selectedAppointmentId === appointment.id) {
-        const nextSelected = nextAppointments[0] || null;
-        setSelectedAppointmentId(nextSelected?.id || null);
-        if (nextSelected) {
-          setSelectedDateKey(getDateKey(nextSelected.appointmentTime));
-          setCalendarCursor(new Date(nextSelected.appointmentTime));
-        }
-      }
+      await cleaningAppointmentApi.update(appointment.id, {
+        id: appointment.id,
+        cleaningClientId: appointment.cleaningClientId,
+        cleaningStaffId: appointment.cleaningStaffId,
+        appointmentTime: appointment.appointmentTime,
+        durationMinutes: appointment.durationMinutes,
+        cancellationTime: getNowApiDateTime(),
+        vacation: false,
+      });
+      await refreshAppointments('Appointment marked as sick.');
+      setSelectedAppointmentId(appointment.id);
     } catch (err) {
-      setError(err.message || 'Could not cancel the appointment.');
+      setError(err.message || 'Could not mark the appointment as sick.');
     } finally {
       setSavingAction('');
     }
@@ -416,8 +609,8 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
       return;
     }
 
-    if (!canManageAppointment(appointmentTimeInput)) {
-      setError('Appointment changes must stay at least one week in the future.');
+    if (!canRescheduleAppointment(appointmentTimeInput)) {
+      setError('Appointment changes must stay at least 4 days in the future.');
       setSuccess('');
       return;
     }
@@ -427,26 +620,13 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
       { appointmentTime: toApiDateTime(appointmentTimeInput) },
       'Appointment updated.',
       'save-time',
-    );
-  }
-
-  function handleUseCurrentAppointmentTime() {
-    if (!selectedAppointment) return;
-
-    const nextTime = getNowInputValue();
-    setAppointmentTimeInput(nextTime);
-
-    updateAppointment(
-      selectedAppointment,
-      { appointmentTime: toApiDateTime(nextTime) },
-      'Appointment updated.',
-      'save-time-now',
+      { requireRescheduleWindow: true },
     );
   }
 
   function handleSetVacation(appointment, vacation) {
     if (vacation && !canSetVacationForAppointment(appointment)) {
-      setError('You have already used 4 vacation appointments in the relevant 1 year period.');
+      setError(`You have already used ${vacationLimit} vacation appointments in the relevant 1 year period.`);
       setSuccess('');
       return;
     }
@@ -456,6 +636,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
       { vacation },
       vacation ? 'Appointment marked as vacation.' : 'Vacation removed from appointment.',
       `vacation-${appointment.id}`,
+      { requireVacationWindow: true },
     );
   }
 
@@ -464,7 +645,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
       <section className="profile-hero">
         <div>
           <div className="section-eyebrow">Cleaning customer</div>
-          <h1>Your cleaning plan.</h1>
+          <h1>{isSubscriber ? 'Your subscription plan.' : 'Your flex cleaning plan.'}</h1>
           <p>{user?.email}</p>
         </div>
         <button className="btn btn-cream" type="button" onClick={onLogout}>
@@ -500,9 +681,9 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
             </div>
 
             <div className="profile-panel accent">
-              <span>Vacations left</span>
-              <h2>{vacationsRemaining}</h2>
-              <p>You can use up to 4 vacation appointments across a rolling one year history.</p>
+              <span>{isSubscriber ? 'Vacations left' : 'Available staff'}</span>
+              <h2>{isSubscriber ? vacationsRemaining : cleaningStaff.length}</h2>
+              <p>{isSubscriber ? `You can use up to ${vacationLimit} vacation appointments across your yearly vacation window.` : 'Available slots are based on cleaning staff calendars.'}</p>
             </div>
           </section>
           <br />
@@ -517,23 +698,20 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
             </button>
           </div>
 
+          {isFlex && (
           <form className="admin-product-form employee-cleaning-form" onSubmit={handleCreateAppointment}>
             <div className="employee-cleaning-form-head">
               <div>
                 <span>New appointment</span>
                 <h3>Book a cleaning visit</h3>
-                <p>Create a new appointment for yourself. Staff assignment happens afterwards, and you can still view all visits even when they are too close to edit.</p>
+                <p>Choose a day, duration, and one of the available staff-backed time slots.</p>
               </div>
             </div>
 
             <div className="field-row compact">
               <div className="field">
-                <label>Appointment time</label>
-                <input
-                  type="datetime-local"
-                  value={createForm.appointmentTime}
-                  onChange={(event) => setCreateForm((current) => ({ ...current, appointmentTime: event.target.value }))}
-                />
+                <label>Selected day</label>
+                <input value={formatCalendarDay(selectedDateKey)} readOnly />
               </div>
             </div>
 
@@ -542,22 +720,48 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                 <label>Duration</label>
                 <select
                   value={createForm.durationMinutes}
-                  onChange={(event) => setCreateForm((current) => ({ ...current, durationMinutes: event.target.value }))}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, durationMinutes: event.target.value, appointmentTime: '' }))}
                 >
-                  {DURATION_OPTIONS.map((minutes) => (
+                  {FLEX_DURATION_OPTIONS.map((minutes) => (
                     <option key={minutes} value={minutes}>{formatDuration(minutes)}</option>
                   ))}
                 </select>
               </div>
             </div>
 
+            <div className="employee-cleaning-day-section">
+              <div className="employee-cleaning-day-head">
+                <h4>Available slots</h4>
+              </div>
+
+              {availableSlots.length === 0 ? (
+                <div className="request-products-state">No available slots for this day and duration.</div>
+              ) : (
+                <div className="employee-cleaning-day-list">
+                  {availableSlots.map((slot) => (
+                    <button
+                      className={`employee-history-row employee-cleaning-day-row ${createForm.appointmentTime === slot.appointmentTime ? 'selected' : ''}`}
+                      type="button"
+                      key={`${slot.appointmentTime}-${slot.staffId}`}
+                      onClick={() => setCreateForm((current) => ({ ...current, appointmentTime: slot.appointmentTime }))}
+                    >
+                      <span>Available</span>
+                      <strong>{slot.label}</strong>
+                      <small>{formatDuration(createForm.durationMinutes)} · {getStaffName(staffById[String(slot.staffId)])}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="employee-actions">
-              <button className="btn btn-blue" type="submit" disabled={savingAction === 'create'}>
+              <button className="btn btn-blue" type="submit" disabled={savingAction === 'create' || !createForm.appointmentTime}>
                 {savingAction === 'create' ? 'Saving...' : 'Create appointment'}
                 <Icon name="plus" size={18} />
               </button>
             </div>
           </form>
+          )}
 
           {!userId && (
             <div className="profile-empty">We could not find your user id in the login session.</div>
@@ -603,6 +807,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                         tabIndex={0}
                         onClick={() => {
                           setSelectedDateKey(day.key);
+                          setCreateForm((current) => ({ ...current, appointmentTime: '' }));
                           if (!dayAppointments.some((appointment) => appointment.id === selectedAppointmentId)) {
                             setSelectedAppointmentId(dayAppointments[0]?.id || null);
                           }
@@ -611,6 +816,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
                             setSelectedDateKey(day.key);
+                            setCreateForm((current) => ({ ...current, appointmentTime: '' }));
                             if (!dayAppointments.some((appointment) => appointment.id === selectedAppointmentId)) {
                               setSelectedAppointmentId(dayAppointments[0]?.id || null);
                             }
@@ -634,7 +840,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                                 }}
                               >
                                 <strong>{formatTimeOnly(appointment.appointmentTime)}</strong>
-                                <small>{appointment.vacation ? 'Vacation' : 'Cleaning visit'}</small>
+                                <small>{getAppointmentLabel(appointment)}</small>
                               </button>
                             );
                           })}
@@ -650,7 +856,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                   <>
                     {selectedAppointment.cancellationTime && (
                       <div className={`employee-cancellation-banner ${getCancellationTone(selectedAppointment.cancellationTime)}`}>
-                        <span>Cancellation deadline</span>
+                        <span>Called in sick</span>
                         <strong>{formatDate(selectedAppointment.cancellationTime)}</strong>
                       </div>
                     )}
@@ -661,7 +867,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                         <h3>{formatCalendarDay(selectedAppointment.appointmentTime)}</h3>
                       </div>
                       <div className="employee-status-pill">
-                        {selectedAppointment.vacation ? 'Vacation' : 'Scheduled'}
+                        {getAppointmentLabel(selectedAppointment)}
                       </div>
                     </div>
 
@@ -688,7 +894,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                       </div>
                       <div>
                         <dt>Can change</dt>
-                        <dd>{canManageAppointment(selectedAppointment.appointmentTime) ? 'Yes' : 'No'}</dd>
+                        <dd>{isFlex && canRescheduleAppointment(selectedAppointment.appointmentTime) && !selectedAppointment.cancellationTime ? 'Yes' : 'No'}</dd>
                       </div>
                       <div>
                         <dt>Can use vacation</dt>
@@ -707,18 +913,24 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                         className="btn btn-ghost"
                         type="button"
                         onClick={() => handleCancelAppointment(selectedAppointment)}
-                        disabled={savingAction === `cancel-${selectedAppointment.id}`}
+                        disabled={savingAction === `cancel-${selectedAppointment.id}` || Boolean(selectedAppointment.cancellationTime)}
                       >
-                        {savingAction === `cancel-${selectedAppointment.id}` ? 'Cancelling...' : 'Cancel appointment'}
+                        {savingAction === `cancel-${selectedAppointment.id}` ? 'Saving...' : selectedAppointment.cancellationTime ? 'Already sick' : 'Call in sick'}
                         <Icon name="x" size={18} />
                       </button>
                     </div>
 
-                    {canManageAppointment(selectedAppointment.appointmentTime) && (
+                    {!selectedAppointment.cancellationTime && getCancellationChargeMessage(selectedAppointment.appointmentTime) && (
+                      <div className="request-products-state error">
+                        {getCancellationChargeMessage(selectedAppointment.appointmentTime)}
+                      </div>
+                    )}
+
+                    {isFlex && canRescheduleAppointment(selectedAppointment.appointmentTime) && !selectedAppointment.cancellationTime && (
                       <div className="profile-panel employee-editor-panel employee-client-editor-panel">
                         <span>Change appointment</span>
                         <h2>Move this visit</h2>
-                        <p>Visits can only be changed when they are at least one week in the future.</p>
+                        <p>Flex visits can only be rescheduled when they are at least 4 days in the future.</p>
 
                         <div className="field-row compact">
                           <div className="field">
@@ -736,19 +948,10 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                             className="btn btn-blue"
                             type="button"
                             onClick={handleSaveAppointmentTime}
-                            disabled={savingAction === 'save-time' || savingAction === 'save-time-now'}
+                            disabled={savingAction === 'save-time'}
                           >
                             {savingAction === 'save-time' ? 'Saving...' : 'Save changes'}
                             <Icon name="arrow" size={18} />
-                          </button>
-                          <button
-                            className="btn btn-ghost"
-                            type="button"
-                            onClick={handleUseCurrentAppointmentTime}
-                            disabled={savingAction === 'save-time' || savingAction === 'save-time-now'}
-                          >
-                            {savingAction === 'save-time-now' ? 'Saving...' : 'Use current time'}
-                            <Icon name="check" size={18} />
                           </button>
                         </div>
                       </div>
@@ -778,12 +981,12 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                             setCalendarCursor(new Date(appointment.appointmentTime));
                           }}
                         >
-                          <span>{appointment.vacation ? 'Vacation visit' : 'Cleaning visit'}</span>
+                          <span>{getAppointmentLabel(appointment)}</span>
                           <strong>{formatCalendarDay(appointment.appointmentTime)} · {formatTimeOnly(appointment.appointmentTime)}</strong>
                           <small>{formatDuration(appointment.durationMinutes)} · {getStaffName(staffById[String(appointment.cleaningStaffId)])}</small>
                           {appointment.cancellationTime && (
                             <small className={`employee-cancellation-inline ${getCancellationTone(appointment.cancellationTime)}`}>
-                              Cancel by: {formatDate(appointment.cancellationTime)}
+                              Called in sick: {formatDate(appointment.cancellationTime)}
                             </small>
                           )}
                         </button>
@@ -803,7 +1006,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
             <div className="profile-panel">
               <span>Vacations left</span>
               <h2>{vacationsRemaining}</h2>
-              <p>You can use up to 4 vacation appointments in a rolling one year period.</p>
+              <p>You can use up to {vacationLimit} vacation appointments in your yearly vacation window.</p>
             </div>
 
             <div className="profile-panel accent">
@@ -908,7 +1111,7 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
 
                   {!appointment.vacation && !canSetVacationForAppointment(appointment) && (
                     <div className="request-products-state error">
-                      4 vacation appointments have already been used in the rolling year window for this visit.
+                      {vacationLimit} vacation appointments have already been used in the yearly vacation window for this visit.
                     </div>
                   )}
                 </div>

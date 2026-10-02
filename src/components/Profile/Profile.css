@@ -313,9 +313,11 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin: 0 0 20px;
+  overflow-wrap: anywhere;
 }
 
 .employee-history-grid div {
+  min-width: 0;
   border: 2px solid rgba(28,26,28,0.12);
   border-radius: 10px;
   background: var(--white);
@@ -334,6 +336,8 @@
   margin: 0;
   font-size: 14px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .employee-cleaning-form {
@@ -609,6 +613,7 @@
 .request-products-state.error {
   color: #8a1818;
   opacity: 1;
+  margin-top: 10px;
 }
 
 .request-products ul {

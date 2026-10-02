@@ -1,19 +1,22 @@
 import { useMemo, useState } from 'react';
 import { emailApi } from '../../api/email.js';
-import { productApi } from '../../api/products.js';
 import { quoteRequestApi } from '../../api/requests.js';
+import { subscriptionDealApi } from '../../api/subscriptionDeals.js';
 import { userApi } from '../../api/users.js';
 import { AdminSession } from './AdminSession/AdminSession.jsx';
 import { AdminTabs } from './AdminTabs/AdminTabs.jsx';
 import { CalendarPanel } from './CalendarPanel/CalendarPanel.jsx';
+import { CustomersPanel } from './CustomersPanel/CustomersPanel.jsx';
 import { EmailPanel } from './EmailPanel/EmailPanel.jsx';
 import { HistoryPanel } from './HistoryPanel/HistoryPanel.jsx';
 import { ProductsPanel } from './ProductsPanel/ProductsPanel.jsx';
 import { RequestsPanel } from './RequestsPanel/RequestsPanel.jsx';
 import { UsersPanel } from './UsersPanel/UsersPanel.jsx';
+import { getProductYear } from '../../lib/products.js';
 import {
   useAdminRequests,
   useAdminUsers,
+  useEconomicCustomers,
   useLazyCustomerRequests,
   useLazyRequestProducts,
 } from './useAdminData.js';
@@ -22,14 +25,11 @@ import {
   buildCustomerSummaries,
   getDateKey,
   getMonthDays,
-  getProductEditBase,
-  getProductUpdatePayload,
   getRequestUpdatePayload,
   getUserEmail,
   getUserId,
   getUserKey,
   hiddenDetailKeys,
-  initialProductForm,
   initialUserForm,
   isStatusSix,
   isStatusTwo,
@@ -58,8 +58,21 @@ function getRoleLabel(role) {
   return 'user';
 }
 
-function getRolesForNewUser(role) {
+function getRolesForNewUser(role, cleaningClientType = 'FLEX') {
+  if (role === 'CLEANING_CLIENT') {
+    return Array.from(new Set(['USER', 'CLEANING_CLIENT', cleaningClientType].filter(Boolean)));
+  }
+
   return Array.from(new Set(['USER', role].filter(Boolean)));
+}
+
+function getEconomicCustomerGroupKey(customer) {
+  const group = customer?.customerGroup;
+  return String(group?.customerGroupNumber ?? group?.name ?? '');
+}
+
+function getEconomicCustomerCountryKey(customer) {
+  return String(customer?.country || '').trim().toLocaleLowerCase('da');
 }
 
 function buildAdminCreatedUserEmail({ email, firstName, role, password }) {
@@ -146,22 +159,24 @@ export function Admin({
   const [selectedCustomerKey, setSelectedCustomerKey] = useState(null);
   const [calendarCursor, setCalendarCursor] = useState(null);
   const [updatingRequest, setUpdatingRequest] = useState(null);
-  const [productForm, setProductForm] = useState(initialProductForm);
-  const [productSaving, setProductSaving] = useState(false);
-  const [productError, setProductError] = useState('');
-  const [productSuccess, setProductSuccess] = useState('');
   const [userForm, setUserForm] = useState(initialUserForm);
   const [userSaving, setUserSaving] = useState(false);
   const [settingAdminUserId, setSettingAdminUserId] = useState(null);
   const [userError, setUserError] = useState('');
   const [userSuccess, setUserSuccess] = useState('');
-  const [productEdits, setProductEdits] = useState({});
-  const [savingProductId, setSavingProductId] = useState(null);
-  const [deletingProductId, setDeletingProductId] = useState(null);
-  const [productListError, setProductListError] = useState('');
-  const [productListSuccess, setProductListSuccess] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [productYear, setProductYear] = useState('all');
+  const [productMinPrice, setProductMinPrice] = useState('');
+  const [productMaxPrice, setProductMaxPrice] = useState('');
+  const [productSort, setProductSort] = useState('name-asc');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [economicCustomerSearch, setEconomicCustomerSearch] = useState('');
+  const [economicCustomerGroup, setEconomicCustomerGroup] = useState('all');
+  const [economicCustomerCountry, setEconomicCustomerCountry] = useState('all');
+  const [economicCustomerStatus, setEconomicCustomerStatus] = useState('all');
+  const [economicCustomerBalance, setEconomicCustomerBalance] = useState('all');
+  const [economicCustomerSort, setEconomicCustomerSort] = useState('name-asc');
+  const [selectedEconomicCustomerNumber, setSelectedEconomicCustomerNumber] = useState(null);
   const {
     requests,
     setRequests,
@@ -179,6 +194,12 @@ export function Admin({
     usersError,
     loadUsers,
   } = useAdminUsers();
+  const {
+    customers: economicCustomers,
+    customersLoading: economicCustomersLoading,
+    customersError: economicCustomersError,
+    loadCustomers: loadEconomicCustomers,
+  } = useEconomicCustomers(adminTab === 'customers' || adminTab === 'email');
   const productTypeOptions = Object.entries(PRODUCT_TYPE_LABELS);
 
   const unansweredTypeOneRequests = useMemo(
@@ -233,6 +254,90 @@ export function Admin({
   const selectedCustomer = useMemo(
     () => filteredCustomers.find(customer => customer.key === selectedCustomerKey) || filteredCustomers[0] || null,
     [filteredCustomers, selectedCustomerKey],
+  );
+
+  const economicCustomerGroups = useMemo(() => Array.from(economicCustomers.reduce((groups, customer) => {
+    const key = getEconomicCustomerGroupKey(customer);
+    if (!key || groups.has(key)) return groups;
+    const group = customer.customerGroup;
+    groups.set(key, group?.name || `Group ${group?.customerGroupNumber || key}`);
+    return groups;
+  }, new Map()).entries())
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'da', { numeric: true })), [economicCustomers]);
+
+  const economicCustomerCountries = useMemo(() => Array.from(economicCustomers.reduce((countries, customer) => {
+    const key = getEconomicCustomerCountryKey(customer);
+    if (!key || countries.has(key)) return countries;
+    countries.set(key, String(customer.country).trim());
+    return countries;
+  }, new Map()).entries())
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'da')), [economicCustomers]);
+
+  const filteredEconomicCustomers = useMemo(() => {
+    const query = economicCustomerSearch.trim().toLowerCase();
+    const filtered = economicCustomers.filter(customer => {
+      const groupKey = getEconomicCustomerGroupKey(customer);
+      const countryKey = getEconomicCustomerCountryKey(customer);
+      const balance = Number(customer.balance || 0);
+      const matchesSearch = !query || [
+        customer.customerNumber,
+        customer.name,
+        customer.email,
+        customer.city,
+        customer.zip,
+        customer.country,
+        customer.corporateIdentificationNumber,
+        customer.vatNumber,
+        customer.customerGroup?.name,
+        customer.customerGroup?.customerGroupNumber,
+      ].some(value => String(value ?? '').toLowerCase().includes(query));
+      const matchesGroup = economicCustomerGroup === 'all' || groupKey === economicCustomerGroup;
+      const matchesCountry = economicCustomerCountry === 'all' || countryKey === economicCustomerCountry;
+      const matchesStatus = economicCustomerStatus === 'all'
+        || (economicCustomerStatus === 'barred' ? customer.barred === true : customer.barred !== true);
+      const matchesBalance = economicCustomerBalance === 'all'
+        || (economicCustomerBalance === 'positive' && balance > 0)
+        || (economicCustomerBalance === 'zero' && balance === 0)
+        || (economicCustomerBalance === 'negative' && balance < 0);
+      return matchesSearch && matchesGroup && matchesCountry && matchesStatus && matchesBalance;
+    });
+
+    return filtered.sort((a, b) => {
+      if (economicCustomerSort === 'name-desc') return String(b.name || '').localeCompare(String(a.name || ''), 'da');
+      if (economicCustomerSort === 'number-asc') return Number(a.customerNumber || 0) - Number(b.customerNumber || 0);
+      if (economicCustomerSort === 'balance-desc') return Number(b.balance || 0) - Number(a.balance || 0);
+      if (economicCustomerSort === 'balance-asc') return Number(a.balance || 0) - Number(b.balance || 0);
+      if (economicCustomerSort === 'updated-desc') {
+        return new Date(b.lastUpdated || 0) - new Date(a.lastUpdated || 0);
+      }
+      return String(a.name || '').localeCompare(String(b.name || ''), 'da');
+    });
+  }, [
+    economicCustomerBalance,
+    economicCustomerCountry,
+    economicCustomerGroup,
+    economicCustomerSearch,
+    economicCustomerSort,
+    economicCustomerStatus,
+    economicCustomers,
+  ]);
+
+  const clearEconomicCustomerFilters = () => {
+    setEconomicCustomerSearch('');
+    setEconomicCustomerGroup('all');
+    setEconomicCustomerCountry('all');
+    setEconomicCustomerStatus('all');
+    setEconomicCustomerBalance('all');
+    setEconomicCustomerSort('name-asc');
+  };
+
+  const selectedEconomicCustomer = useMemo(
+    () => filteredEconomicCustomers.find(customer => customer.customerNumber === selectedEconomicCustomerNumber)
+      || filteredEconomicCustomers[0]
+      || null,
+    [filteredEconomicCustomers, selectedEconomicCustomerNumber],
   );
   const {
     customerRequestStates,
@@ -294,14 +399,23 @@ export function Admin({
 
   const calendarDays = useMemo(() => getMonthDays(displayedCalendarCursor), [displayedCalendarCursor]);
 
+  const productYears = useMemo(() => Array.from(new Set(products
+    .map(getProductYear)
+    .filter(Number.isFinite)))
+    .sort((a, b) => b - a), [products]);
+
   const filteredProducts = useMemo(() => {
     const query = productSearch.trim().toLowerCase();
-    if (!query) return products;
+    const minPrice = productMinPrice === '' ? null : Number(productMinPrice);
+    const maxPrice = productMaxPrice === '' ? null : Number(productMaxPrice);
 
-    return products.filter(product => {
+    const filtered = products.filter(product => {
       const typeLabel = PRODUCT_TYPE_LABELS[product.type] || `Type ${product.type ?? ''}`;
-      return [
+      const matchesSearch = !query || [
         product.id,
+        product.economicProductNumber,
+        product.economicProductGroupName,
+        product.economicProductGroupNumber,
         product.name,
         product.description,
         product.desc,
@@ -309,8 +423,37 @@ export function Admin({
         product.type,
         typeLabel,
       ].some(value => String(value ?? '').toLowerCase().includes(query));
+      const productCatalogYear = getProductYear(product);
+      const price = Number(product.price || 0);
+      const matchesYear = productYear === 'all' || productCatalogYear === Number(productYear);
+      const matchesMin = minPrice === null || Number.isNaN(minPrice) || price >= minPrice;
+      const matchesMax = maxPrice === null || Number.isNaN(maxPrice) || price <= maxPrice;
+      return matchesSearch && matchesYear && matchesMin && matchesMax;
     });
-  }, [productSearch, products]);
+
+    return filtered.sort((a, b) => {
+      if (productSort === 'name-desc') return b.name.localeCompare(a.name, 'da');
+      if (productSort === 'category-asc') {
+        const categoryA = PRODUCT_TYPE_LABELS[a.type] || `Type ${a.type ?? ''}`;
+        const categoryB = PRODUCT_TYPE_LABELS[b.type] || `Type ${b.type ?? ''}`;
+        return categoryA.localeCompare(categoryB, 'da') || a.name.localeCompare(b.name, 'da');
+      }
+      if (productSort === 'price-asc') return Number(a.price) - Number(b.price);
+      if (productSort === 'price-desc') return Number(b.price) - Number(a.price);
+      if (productSort === 'updated-desc') {
+        return new Date(b.economicLastUpdated || 0) - new Date(a.economicLastUpdated || 0);
+      }
+      return a.name.localeCompare(b.name, 'da');
+    });
+  }, [productMaxPrice, productMinPrice, productSearch, productSort, productYear, products]);
+
+  const clearProductFilters = () => {
+    setProductSearch('');
+    setProductYear('all');
+    setProductMinPrice('');
+    setProductMaxPrice('');
+    setProductSort('name-asc');
+  };
 
   const refreshCustomers = async () => {
     resetCustomerRequestStates();
@@ -341,53 +484,10 @@ export function Admin({
     }
   };
 
-  const updateProductField = (field, value) => {
-    setProductForm(current => ({ ...current, [field]: value }));
-    setProductError('');
-    setProductSuccess('');
-  };
-
   const updateUserField = (field, value) => {
     setUserForm(current => ({ ...current, [field]: value }));
     setUserError('');
     setUserSuccess('');
-  };
-
-  const createProduct = async (event) => {
-    event.preventDefault();
-
-    const name = productForm.name.trim();
-    const description = productForm.description.trim();
-    const price = Number(productForm.price);
-    const type = Number(productForm.type);
-
-    if (!name || !Number.isFinite(price) || price < 0 || !Number.isFinite(type)) {
-      setProductError('Add a name, valid price, and product type.');
-      return;
-    }
-
-    setProductSaving(true);
-    setProductError('');
-    setProductSuccess('');
-
-    try {
-      await productApi.create({
-        name,
-        description,
-        price,
-        type,
-        productInRequestIds: [],
-      });
-      setProductForm(initialProductForm);
-      setProductSuccess(`${name} was added to products.`);
-      if (onProductsChanged) {
-        await onProductsChanged();
-      }
-    } catch (err) {
-      setProductError(err.message || 'Could not add product.');
-    } finally {
-      setProductSaving(false);
-    }
   };
 
   const createUser = async (event) => {
@@ -397,12 +497,24 @@ export function Admin({
     const firstName = userForm.firstName.trim();
     const lastName = userForm.lastName.trim();
     const role = String(userForm.role || 'USER').toUpperCase();
-    const roles = getRolesForNewUser(role);
+    const cleaningClientType = String(userForm.cleaningClientType || 'FLEX').toUpperCase();
+    const roles = getRolesForNewUser(role, cleaningClientType);
     const roleLabel = getRoleLabel(role);
+    const visitsPerMonth = Number(userForm.visitsPerMonth);
     const password = 'ChangeMe!';
 
     if (!email || !firstName || !lastName) {
       setUserError('Add email, first name, and last name.');
+      return;
+    }
+
+    if (role === 'CLEANING_CLIENT' && !['SUBSCRIBER', 'FLEX'].includes(cleaningClientType)) {
+      setUserError('Choose subscriber or flex for the cleaning customer.');
+      return;
+    }
+
+    if (role === 'CLEANING_CLIENT' && cleaningClientType === 'SUBSCRIBER' && (!Number.isInteger(visitsPerMonth) || visitsPerMonth < 1)) {
+      setUserError('Add a valid visits per month value for the subscriber.');
       return;
     }
 
@@ -433,6 +545,14 @@ export function Admin({
         lastName,
         roles,
       });
+
+      if (role === 'CLEANING_CLIENT' && cleaningClientType === 'SUBSCRIBER') {
+        await subscriptionDealApi.create({
+          userId: createdUserId,
+          visitsPerMonth,
+        });
+      }
+
       const refreshedUsers = await userApi.getAll();
       const refreshedUser = Array.isArray(refreshedUsers)
         ? refreshedUsers.find(nextUser => String(getUserId(nextUser)) === String(createdUserId))
@@ -511,80 +631,6 @@ export function Admin({
       setUserError(err.message || 'Could not make user admin.');
     } finally {
       setSettingAdminUserId(null);
-    }
-  };
-
-  const getProductEdit = (product) => productEdits[product.id] || getProductEditBase(product);
-
-  const updateProductEdit = (product, field, value) => {
-    setProductEdits(current => ({
-      ...current,
-      [product.id]: {
-        ...getProductEditBase(product),
-        ...current[product.id],
-        [field]: value,
-      },
-    }));
-    setProductListError('');
-    setProductListSuccess('');
-  };
-
-  const saveProduct = async (product) => {
-    const edit = getProductEdit(product);
-    const payload = getProductUpdatePayload(product, edit);
-
-    if (!payload.name || !Number.isFinite(payload.price) || payload.price < 0 || !Number.isFinite(payload.type)) {
-      setProductListError('Each product needs a name, valid price, and type before saving.');
-      return;
-    }
-
-    setSavingProductId(product.id);
-    setProductListError('');
-    setProductListSuccess('');
-
-    try {
-      await productApi.update(product.id, payload);
-      setProductEdits(current => {
-        const next = { ...current };
-        delete next[product.id];
-        return next;
-      });
-      setProductListSuccess(`${payload.name} was updated.`);
-      if (onProductsChanged) {
-        await onProductsChanged();
-      }
-    } catch (err) {
-      setProductListError(err.message || 'Could not update product.');
-    } finally {
-      setSavingProductId(null);
-    }
-  };
-
-  const deleteProduct = async (product) => {
-    if (!product?.id || deletingProductId) return;
-    const name = product.name || `Product #${product.id}`;
-    const confirmed = window.confirm(`Delete ${name}?`);
-    if (!confirmed) return;
-
-    setDeletingProductId(product.id);
-    setProductListError('');
-    setProductListSuccess('');
-
-    try {
-      await productApi.delete(product.id);
-      setProductEdits(current => {
-        const next = { ...current };
-        delete next[product.id];
-        return next;
-      });
-      setProductListSuccess(`${name} was deleted.`);
-      if (onProductsChanged) {
-        await onProductsChanged();
-      }
-    } catch (err) {
-      setProductListError(err.message || 'Could not delete product.');
-    } finally {
-      setDeletingProductId(null);
     }
   };
 
@@ -680,10 +726,37 @@ export function Admin({
         />
       )}
 
+      {adminTab === 'customers' && (
+        <CustomersPanel
+          customers={economicCustomers}
+          filteredCustomers={filteredEconomicCustomers}
+          selectedCustomer={selectedEconomicCustomer}
+          loading={economicCustomersLoading}
+          error={economicCustomersError}
+          search={economicCustomerSearch}
+          group={economicCustomerGroup}
+          groups={economicCustomerGroups}
+          country={economicCustomerCountry}
+          countries={economicCustomerCountries}
+          status={economicCustomerStatus}
+          balance={economicCustomerBalance}
+          sort={economicCustomerSort}
+          onRefresh={loadEconomicCustomers}
+          onSearchChange={setEconomicCustomerSearch}
+          onGroupChange={setEconomicCustomerGroup}
+          onCountryChange={setEconomicCustomerCountry}
+          onStatusChange={setEconomicCustomerStatus}
+          onBalanceChange={setEconomicCustomerBalance}
+          onSortChange={setEconomicCustomerSort}
+          onClearFilters={clearEconomicCustomerFilters}
+          onSelectCustomer={setSelectedEconomicCustomerNumber}
+        />
+      )}
+
       {adminTab === 'email' && (
         <EmailPanel
-          customers={customers}
-          selectedCustomer={selectedCustomer}
+          users={customers}
+          economicCustomers={economicCustomers}
           senderEmail={user?.email}
         />
       )}
@@ -694,24 +767,20 @@ export function Admin({
           filteredProducts={filteredProducts}
           productsLoading={productsLoading}
           productsError={productsError}
-          productForm={productForm}
-          productSaving={productSaving}
-          productError={productError}
-          productSuccess={productSuccess}
-          productListError={productListError}
-          productListSuccess={productListSuccess}
           productSearch={productSearch}
+          productYear={productYear}
+          productYears={productYears}
+          productMinPrice={productMinPrice}
+          productMaxPrice={productMaxPrice}
+          productSort={productSort}
           productTypeOptions={productTypeOptions}
-          savingProductId={savingProductId}
-          deletingProductId={deletingProductId}
-          onCreateProduct={createProduct}
-          onUpdateProductField={updateProductField}
           onProductsChanged={onProductsChanged}
           onSearchChange={setProductSearch}
-          getProductEdit={getProductEdit}
-          onUpdateProductEdit={updateProductEdit}
-          onSaveProduct={saveProduct}
-          onDeleteProduct={deleteProduct}
+          onYearChange={setProductYear}
+          onMinPriceChange={setProductMinPrice}
+          onMaxPriceChange={setProductMaxPrice}
+          onSortChange={setProductSort}
+          onClearFilters={clearProductFilters}
         />
       )}
 

@@ -8,21 +8,51 @@ const initialEmailForm = {
   body: '',
 };
 
-export function EmailPanel({ customers = [], selectedCustomer = null, senderEmail = '' }) {
+function uniqueRecipients(recipients) {
+  const emails = new Set();
+  return recipients.filter(recipient => {
+    const key = recipient.email.toLocaleLowerCase();
+    if (emails.has(key)) return false;
+    emails.add(key);
+    return true;
+  });
+}
+
+export function EmailPanel({ users = [], economicCustomers = [], senderEmail = '' }) {
   const [emailForm, setEmailForm] = useState(initialEmailForm);
+  const [recipientSource, setRecipientSource] = useState('users');
+  const [recipientSearch, setRecipientSearch] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const customerOptions = useMemo(
-    () => customers
-      .filter(customer => customer.email && customer.email !== 'Unknown')
-      .map(customer => ({
-        email: customer.email,
-        label: [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.email,
-      })),
-    [customers],
-  );
+  const userOptions = useMemo(() => uniqueRecipients(users
+    .filter(user => user.email && user.email !== 'Unknown')
+    .map(user => ({
+      key: `user-${user.id || user.email}`,
+      email: user.email,
+      label: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email,
+      detail: user.role || 'Local user',
+    }))), [users]);
+
+  const economicCustomerOptions = useMemo(() => uniqueRecipients(economicCustomers
+    .filter(customer => customer.email)
+    .map(customer => ({
+      key: `economic-${customer.customerNumber || customer.email}`,
+      email: customer.email,
+      label: customer.name || customer.email,
+      detail: customer.customerNumber
+        ? `e-conomic customer #${customer.customerNumber}`
+        : 'e-conomic customer',
+    }))), [economicCustomers]);
+
+  const activeRecipients = recipientSource === 'economic' ? economicCustomerOptions : userOptions;
+  const filteredRecipients = useMemo(() => {
+    const query = recipientSearch.trim().toLocaleLowerCase('da');
+    if (!query) return activeRecipients;
+    return activeRecipients.filter(recipient => [recipient.label, recipient.email, recipient.detail]
+      .some(value => String(value || '').toLocaleLowerCase('da').includes(query)));
+  }, [activeRecipients, recipientSearch]);
 
   const updateEmailField = (field, value) => {
     setEmailForm(current => ({ ...current, [field]: value }));
@@ -30,9 +60,13 @@ export function EmailPanel({ customers = [], selectedCustomer = null, senderEmai
     setSuccess('');
   };
 
-  const useSelectedCustomer = () => {
-    if (!selectedCustomer?.email || selectedCustomer.email === 'Unknown') return;
-    updateEmailField('to', selectedCustomer.email);
+  const chooseRecipientSource = (source) => {
+    setRecipientSource(source);
+    setRecipientSearch('');
+  };
+
+  const selectRecipient = (recipient) => {
+    updateEmailField('to', recipient.email);
   };
 
   const sendEmail = async (event) => {
@@ -67,8 +101,8 @@ export function EmailPanel({ customers = [], selectedCustomer = null, senderEmai
       <section className="profile-grid admin-grid">
         <div className="profile-panel">
           <span>Recipients</span>
-          <h2>{customerOptions.length}</h2>
-          <p>Known customer emails available from the user API.</p>
+          <h2>{userOptions.length + economicCustomerOptions.length}</h2>
+          <p>{userOptions.length} local users and {economicCustomerOptions.length} e-conomic customers with email.</p>
         </div>
 
         <div className="profile-panel accent">
@@ -86,11 +120,65 @@ export function EmailPanel({ customers = [], selectedCustomer = null, senderEmai
         </div>
       </div>
 
-      <form className="admin-product-form admin-email-form" onSubmit={sendEmail}>
-        {error && <div className="form-error">{error}</div>}
-        {success && <div className="form-success">{success}</div>}
+      <div className="admin-email-layout">
+        <aside className="admin-email-directory" aria-label="Recipient directory">
+          <div className="admin-email-source-tabs" role="tablist" aria-label="Recipient source">
+            <button
+              className={recipientSource === 'users' ? 'active' : ''}
+              type="button"
+              role="tab"
+              aria-selected={recipientSource === 'users'}
+              onClick={() => chooseRecipientSource('users')}
+            >
+              Users <span>{userOptions.length}</span>
+            </button>
+            <button
+              className={recipientSource === 'economic' ? 'active' : ''}
+              type="button"
+              role="tab"
+              aria-selected={recipientSource === 'economic'}
+              onClick={() => chooseRecipientSource('economic')}
+            >
+              Customers <span>{economicCustomerOptions.length}</span>
+            </button>
+          </div>
 
-        <div className="field-row">
+          <div className="field admin-email-recipient-search">
+            <label>Find recipient</label>
+            <input
+              value={recipientSearch}
+              onChange={event => setRecipientSearch(event.target.value)}
+              placeholder={recipientSource === 'economic' ? 'Name, email, or customer number' : 'Name, email, or role'}
+            />
+          </div>
+
+          <div className="admin-email-recipient-count">
+            {filteredRecipients.length} {recipientSource === 'economic' ? 'customers' : 'users'}
+          </div>
+
+          <div className="admin-email-recipient-list">
+            {filteredRecipients.slice(0, 10).map(recipient => (
+              <button
+                className={emailForm.to === recipient.email ? 'selected' : ''}
+                type="button"
+                key={recipient.key}
+                onClick={() => selectRecipient(recipient)}
+              >
+                <strong>{recipient.label}</strong>
+                <span>{recipient.email}</span>
+                <small>{recipient.detail}</small>
+              </button>
+            ))}
+            {filteredRecipients.length === 0 && (
+              <div className="profile-empty">No recipients match your search.</div>
+            )}
+          </div>
+        </aside>
+
+        <form className="admin-product-form admin-email-form" onSubmit={sendEmail}>
+          {error && <div className="form-error">{error}</div>}
+          {success && <div className="form-success">{success}</div>}
+
           <div className="field">
             <label>To</label>
             <input
@@ -102,55 +190,43 @@ export function EmailPanel({ customers = [], selectedCustomer = null, senderEmai
               required
             />
             <datalist id="admin-email-recipients">
-              {customerOptions.map(customer => (
-                <option value={customer.email} key={customer.email}>
-                  {customer.label}
+              {[...userOptions, ...economicCustomerOptions].map(recipient => (
+                <option value={recipient.email} key={recipient.key}>
+                  {recipient.label}
                 </option>
               ))}
             </datalist>
           </div>
 
-          <div className="admin-product-submit">
-            <button
-              className="btn btn-cream"
-              type="button"
-              onClick={useSelectedCustomer}
-              disabled={!selectedCustomer?.email || selectedCustomer.email === 'Unknown'}
-            >
-              Use selected user
-              <Icon name="check" size={18} />
+          <div className="field">
+            <label>Subject</label>
+            <input
+              value={emailForm.subject}
+              onChange={event => updateEmailField('subject', event.target.value)}
+              placeholder="Your request from Morgendagens Maaltid"
+              required
+            />
+          </div>
+
+          <div className="field">
+            <label>Message</label>
+            <textarea
+              value={emailForm.body}
+              onChange={event => updateEmailField('body', event.target.value)}
+              placeholder="Write the customer email here"
+              rows="8"
+              required
+            />
+          </div>
+
+          <div className="admin-email-actions">
+            <button className="btn btn-blue" type="submit" disabled={sending}>
+              {sending ? 'Sending...' : 'Send email'}
+              <Icon name="arrow" size={18} />
             </button>
           </div>
-        </div>
-
-        <div className="field">
-          <label>Subject</label>
-          <input
-            value={emailForm.subject}
-            onChange={event => updateEmailField('subject', event.target.value)}
-            placeholder="Your request from Morgendagens Maaltid"
-            required
-          />
-        </div>
-
-        <div className="field">
-          <label>Message</label>
-          <textarea
-            value={emailForm.body}
-            onChange={event => updateEmailField('body', event.target.value)}
-            placeholder="Write the customer email here"
-            rows="8"
-            required
-          />
-        </div>
-
-        <div className="admin-email-actions">
-          <button className="btn btn-blue" type="submit" disabled={sending}>
-            {sending ? 'Sending...' : 'Send email'}
-            <Icon name="arrow" size={18} />
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </section>
   );
 }

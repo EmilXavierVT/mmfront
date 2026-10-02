@@ -342,7 +342,7 @@ export function Booking({
         status: 1,
         type: service === 'cleaning' ? 2 : 1,
         allergies: service === 'catering' && allergies.trim() ? allergies.trim() : null,
-        productInRequestIds: selectedProductIds,
+        productInRequestIds: [],
         email: requestEmail,
         userEmail: requestEmail,
         weatherDTO: null,
@@ -352,7 +352,7 @@ export function Booking({
       if (createdRequest?.id && selectedDishes.length > 0) {
         await Promise.all(selectedDishes.map(d => productInRequestApi.create({
           requestId: createdRequest.id,
-          productId: d.id,
+          productNumber: d.economicProductNumber || String(d.id),
           time: toTimePayload(startTime),
           amount: guests,
         }, requestAuthToken)));
