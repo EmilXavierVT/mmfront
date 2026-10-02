@@ -1,5 +1,14 @@
 import { Icon } from '../../Shared/Icon.jsx';
-import { formatDate, getStatus, getType, isAdminUser, isEmployeeUser, isYouthIslandUser } from '../adminUtils.js';
+import {
+  formatDate,
+  getStatus,
+  getType,
+  isAdminUser,
+  isCleaningClientUser,
+  isCleaningStaffUser,
+  isEmployeeUser,
+  isYouthIslandUser,
+} from '../adminUtils.js';
 
 export function UsersPanel({
   customers,
@@ -21,6 +30,8 @@ export function UsersPanel({
   onSearchChange,
   onSelectCustomer,
   onMakeAdmin,
+  onMakeCleaningClient,
+  onMakeCleaningStaff,
   onMakeEmployee,
   onMakeYouthIsland,
 }) {
@@ -221,6 +232,28 @@ export function UsersPanel({
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make admin'}
                                 <Icon name="check" size={18} />
+                              </button>
+                            )}
+                            {!isCleaningClientUser(selectedCustomer) && (
+                              <button
+                                className="btn btn-ghost"
+                                type="button"
+                                onClick={() => onMakeCleaningClient(selectedCustomer)}
+                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                              >
+                                {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make cleaning customer'}
+                                <Icon name="spray" size={18} />
+                              </button>
+                            )}
+                            {!isCleaningStaffUser(selectedCustomer) && (
+                              <button
+                                className="btn btn-ghost"
+                                type="button"
+                                onClick={() => onMakeCleaningStaff(selectedCustomer)}
+                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                              >
+                                {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make cleaning staff'}
+                                <Icon name="spray" size={18} />
                               </button>
                             )}
                             {!isYouthIslandUser(selectedCustomer) && (

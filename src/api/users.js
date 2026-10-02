@@ -18,6 +18,12 @@ export const userApi = {
     method: 'PUT',
     body: JSON.stringify(user),
   }),
+  setCleaningClient: (id) => apiRequest(`/user/${id}/cleaning-client`, {
+    method: 'PUT',
+  }),
+  setCleaningStaff: (id) => apiRequest(`/user/${id}/cleaning-staff`, {
+    method: 'PUT',
+  }),
   setYouthIsland: (id) => apiRequest(`/user/${id}/youth-island`, {
     method: 'PUT',
   }),

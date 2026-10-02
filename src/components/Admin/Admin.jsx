@@ -680,6 +680,46 @@ export function Admin({
     }
   };
 
+  const makeUserCleaningClient = async (selectedUser) => {
+    if (!selectedUser?.id || settingAdminUserId) return;
+
+    setSettingAdminUserId(selectedUser.id);
+    setUserError('');
+    setUserSuccess('');
+
+    try {
+      await userApi.setCleaningClient(selectedUser.id);
+      const refreshedUsers = await userApi.getAll();
+      setUsers(Array.isArray(refreshedUsers) ? refreshedUsers : users);
+      setSelectedCustomerKey(selectedUser.key);
+      setUserSuccess(`${selectedUser.email} is now a cleaning customer.`);
+    } catch (err) {
+      setUserError(err.message || 'Could not add the cleaning customer role.');
+    } finally {
+      setSettingAdminUserId(null);
+    }
+  };
+
+  const makeUserCleaningStaff = async (selectedUser) => {
+    if (!selectedUser?.id || settingAdminUserId) return;
+
+    setSettingAdminUserId(selectedUser.id);
+    setUserError('');
+    setUserSuccess('');
+
+    try {
+      await userApi.setCleaningStaff(selectedUser.id);
+      const refreshedUsers = await userApi.getAll();
+      setUsers(Array.isArray(refreshedUsers) ? refreshedUsers : users);
+      setSelectedCustomerKey(selectedUser.key);
+      setUserSuccess(`${selectedUser.email} is now cleaning staff.`);
+    } catch (err) {
+      setUserError(err.message || 'Could not add the cleaning staff role.');
+    } finally {
+      setSettingAdminUserId(null);
+    }
+  };
+
   const makeUserYouthIsland = async (selectedUser) => {
     if (!selectedUser?.id || settingAdminUserId) return;
 
@@ -789,6 +829,8 @@ export function Admin({
           onSearchChange={setCustomerSearch}
           onSelectCustomer={setSelectedCustomerKey}
           onMakeAdmin={makeUserAdmin}
+          onMakeCleaningClient={makeUserCleaningClient}
+          onMakeCleaningStaff={makeUserCleaningStaff}
           onMakeEmployee={makeUserEmployee}
           onMakeYouthIsland={makeUserYouthIsland}
         />
