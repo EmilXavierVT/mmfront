@@ -8,7 +8,7 @@ export const PRODUCT_TYPE_LABELS = {
   [CLEANING_PRODUCT_TYPE]: 'Cleaning',
 };
 
-const PRODUCT_COLORS = ['#0496ff', '#efab6c', '#a8f2a2', '#fa5d5d', '#ff1dff', '#1c1a1c'];
+const PRODUCT_COLORS = ['#497da6', '#d9a35f', '#9fc7a4', '#d86f64', '#c13a86', '#342f33'];
 
 export const normalizeProduct = (product, index) => ({
   id: product.id,

@@ -13,15 +13,15 @@ export function Hero({ tweaks, onBook }) {
   const variants = {
     bold: {
       eyebrow: 'Now booking — Apr & May',
-      title: <>Feed the <span className="pink">rebellion.</span><br/><span className="underline-mark">Clean</span> the rest.</>,
+      title: <>Food for <span className="pink">tomorrow.</span><br/><span className="underline-mark">Clean</span> spaces after.</>,
     },
     warm: {
       eyebrow: 'Family-run since 2019',
       title: <>Real food.<br/>Real clean.<br/><span className="pink">No compromise.</span></>,
     },
     punchy: {
-      eyebrow: 'Local · Sustainable · Loud',
-      title: <>Catering with <span className="pink">attitude.</span><br/>Cleaning with <span className="underline-mark">conscience.</span></>,
+      eyebrow: 'Local · Sustainable · Thoughtful',
+      title: <>Catering with <span className="pink">character.</span><br/>Cleaning with <span className="underline-mark">care.</span></>,
     },
   };
   const v = variants[tweaks.heroVariant] || variants.bold;

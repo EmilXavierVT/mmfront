@@ -23,8 +23,8 @@ export function Menu({ cart, products, loading, error, onAdd, onRetry }) {
   return (
     <section className="section">
       <div className="section-eyebrow">The Menu</div>
-      <h2 className="section-title">Built for <span className="pink">opinionated</span> eaters.</h2>
-      <p className="section-sub">Our stables. Here to STAY. Allergies and swaps are the rule, not the exception — just tell us.</p>
+      <h2 className="section-title">Built for <span className="pink">curious</span> eaters.</h2>
+      <p className="section-sub">Our staples, made flexible. Allergies and swaps are the rule, not the exception — just tell us.</p>
       {loading && <div className="menu-state">Loading menu...</div>}
       {error && (
         <div className="menu-state error">

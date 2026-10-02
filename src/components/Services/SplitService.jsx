@@ -6,8 +6,8 @@ export function SplitService({ onBook }) {
   return (
     <section className="section">
       <div className="section-eyebrow">What we do</div>
-      <h2 className="section-title">Pick your <span className="pink">poison</span>.</h2>
-      <p className="section-sub">Two services. Same obsession with doing the small things radically well.</p>
+      <h2 className="section-title">Choose what <span className="pink">helps</span>.</h2>
+      <p className="section-sub">Two services. Same care for the small things that make hosting feel easy.</p>
       <div className="split">
         <button type="button" className="split-card" onClick={() => onBook('catering')}>
           <div className="img" style={{backgroundImage:`url(${cateringHeroUrl})`}}/>
