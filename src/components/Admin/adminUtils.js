@@ -211,6 +211,10 @@ export function isFlexUser(customer) {
   return hasRole(customer, 'flex');
 }
 
+export function isYouthIslandUser(customer) {
+  return hasRole(customer, 'youth_island');
+}
+
 export function getUserKey(customer) {
   return String(getUserId(customer) || getUserEmail(customer)).toLowerCase();
 }

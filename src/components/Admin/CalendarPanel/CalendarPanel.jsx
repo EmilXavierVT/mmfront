@@ -1,32 +1,72 @@
 import { Icon } from '../../Shared/Icon.jsx';
 import { formatCalendarDay, formatCalendarMonth, formatDate, getProductDescription, getProductName, getRequester, getStatus } from '../adminUtils.js';
 
+function getEventTitle(event) {
+  if (event?.kind === 'youthIsland') {
+    return event.booking?.customerName || 'Ungdomsøen booking';
+  }
+
+  return event?.request?.location || 'No location';
+}
+
+function getEventSubtitle(event) {
+  if (event?.kind === 'youthIsland') {
+    const booking = event.booking;
+    return [
+      'Ungdomsøen',
+      booking?.totalGuests ? `${booking.totalGuests} pers.` : null,
+    ].filter(Boolean).join(' · ');
+  }
+
+  return getRequester(event?.request);
+}
+
 export function CalendarPanel({
-  acceptedRequests,
-  selectedCalendarRequest,
+  youthIslandBookings,
+  calendarEvents,
+  selectedCalendarEvent,
   selectedCalendarProductsState,
   requestsLoading,
   requestsError,
   displayedCalendarCursor,
   calendarDays,
-  acceptedRequestsByDay,
+  calendarEventsByDay,
   onRefresh,
   onMoveMonth,
-  onSelectRequest,
+  onSelectEvent,
 }) {
+  const selectedCalendarRequest = selectedCalendarEvent?.kind === 'request'
+    ? selectedCalendarEvent.request
+    : null;
+  const selectedYouthIslandBooking = selectedCalendarEvent?.kind === 'youthIsland'
+    ? selectedCalendarEvent.booking
+    : null;
+
   return (
         <section className="profile-requests admin-calendar">
           <section className="profile-grid admin-grid">
             <div className="profile-panel">
-              <span>Status 2</span>
-              <h2>{acceptedRequests.length}</h2>
-              <p>Accepted requests ready to plan on the calendar.</p>
+              <span>Calendar</span>
+              <h2>{calendarEvents.length}</h2>
+              <p>Accepted requests and Ungdomsøen bookings.</p>
+            </div>
+
+            <div className="profile-panel">
+              <span>Ungdomsøen</span>
+              <h2>{youthIslandBookings.length}</h2>
+              <p>YI bookings visible in this calendar.</p>
             </div>
 
             <div className="profile-panel accent">
               <span>Selected</span>
-              <h2>{selectedCalendarRequest ? `#${selectedCalendarRequest.id || 'New'}` : 'None'}</h2>
-              <p>{selectedCalendarRequest?.location || 'Choose an event to see the overview.'}</p>
+              <h2>
+                {selectedCalendarEvent
+                  ? selectedCalendarEvent.kind === 'youthIsland'
+                    ? `YI #${selectedYouthIslandBooking?.id || 'New'}`
+                    : `#${selectedCalendarRequest?.id || 'New'}`
+                  : 'None'}
+              </h2>
+              <p>{getEventTitle(selectedCalendarEvent) || 'Choose an event to see the overview.'}</p>
             </div>
           </section>
           <br />
@@ -34,7 +74,7 @@ export function CalendarPanel({
           <div className="profile-section-head">
             <div>
               <div className="section-eyebrow">Calendar</div>
-              <h2>Status 2 events</h2>
+              <h2>Accepted events</h2>
             </div>
             <button className="btn btn-blue" type="button" onClick={onRefresh} disabled={requestsLoading}>
               Refresh <Icon name="arrow" size={18} />
@@ -49,13 +89,13 @@ export function CalendarPanel({
             <div className="form-error">{requestsError}</div>
           )}
 
-          {!requestsLoading && !requestsError && acceptedRequests.length === 0 && (
-            <div className="profile-empty">No status 2 requests found.</div>
+          {!requestsLoading && !requestsError && calendarEvents.length === 0 && (
+            <div className="profile-empty">No accepted requests or Ungdomsøen bookings found.</div>
           )}
 
-          {acceptedRequests.length > 0 && (
+          {calendarEvents.length > 0 && (
             <div className="admin-calendar-layout">
-              <section className="admin-calendar-board" aria-label="Status 2 request calendar">
+              <section className="admin-calendar-board" aria-label="Accepted request and Ungdomsøen booking calendar">
                 <div className="admin-calendar-head">
                   <button className="admin-calendar-nav" type="button" onClick={() => onMoveMonth(-1)} aria-label="Previous month">
                     <Icon name="chevL" size={18} />
@@ -74,24 +114,25 @@ export function CalendarPanel({
 
                 <div className="admin-calendar-grid">
                   {calendarDays.map(day => {
-                    const dayRequests = acceptedRequestsByDay[day.key] || [];
+                    const dayEvents = calendarEventsByDay[day.key] || [];
 
                     return (
                       <div className={`admin-calendar-day ${day.inMonth ? '' : 'muted'}`} key={day.key}>
                         <span className="admin-calendar-date">{day.date.getDate()}</span>
                         <div className="admin-calendar-events">
-                          {dayRequests.map(request => {
-                            const isSelected = selectedCalendarRequest?.id === request.id;
+                          {dayEvents.map(event => {
+                            const isSelected = selectedCalendarEvent?.key === event.key;
+                            const isYouthIsland = event.kind === 'youthIsland';
 
                             return (
                               <button
-                                className={`admin-calendar-event ${isSelected ? 'selected' : ''}`}
+                                className={`admin-calendar-event ${isSelected ? 'selected' : ''} ${isYouthIsland ? 'youth-island' : ''}`}
                                 type="button"
-                                key={request.id || `${request.startDate}-${request.location}`}
-                                onClick={() => onSelectRequest(request.id)}
+                                key={event.key}
+                                onClick={() => onSelectEvent(event.key)}
                               >
-                                <strong>{request.location || 'No location'}</strong>
-                                <small>{getRequester(request)}</small>
+                                <strong>{getEventTitle(event)}</strong>
+                                <small>{getEventSubtitle(event)}</small>
                               </button>
                             );
                           })}
@@ -161,6 +202,82 @@ export function CalendarPanel({
                         </ul>
                       )}
                     </div>
+                  </>
+                ) : selectedYouthIslandBooking ? (
+                  <>
+                    <div className="admin-detail-head">
+                      <div>
+                        <span>Ungdomsøen booking</span>
+                        <h3>{selectedYouthIslandBooking.customerName || 'No title'}</h3>
+                      </div>
+                      <div className="admin-status-pill youth-island">YI</div>
+                    </div>
+
+                    <dl className="admin-detail-grid">
+                      <div>
+                        <dt>ID</dt>
+                        <dd>{selectedYouthIslandBooking.id || 'None'}</dd>
+                      </div>
+                      <div>
+                        <dt>Event day</dt>
+                        <dd>{formatCalendarDay(selectedYouthIslandBooking.eventDate)}</dd>
+                      </div>
+                      <div>
+                        <dt>Order date</dt>
+                        <dd>{selectedYouthIslandBooking.orderDate ? formatCalendarDay(selectedYouthIslandBooking.orderDate) : 'None'}</dd>
+                      </div>
+                      <div>
+                        <dt>Spectra</dt>
+                        <dd>{selectedYouthIslandBooking.spectraReservationNumber || 'None'}</dd>
+                      </div>
+                      <div>
+                        <dt>Location</dt>
+                        <dd>{selectedYouthIslandBooking.location || 'None'}</dd>
+                      </div>
+                      <div>
+                        <dt>Guests</dt>
+                        <dd>{selectedYouthIslandBooking.totalGuests || 0}</dd>
+                      </div>
+                      <div>
+                        <dt>Allergies</dt>
+                        <dd>{selectedYouthIslandBooking.allergies || 'None'}</dd>
+                      </div>
+                      <div>
+                        <dt>Snack trays</dt>
+                        <dd>{selectedYouthIslandBooking.snackTrayCount || 0}</dd>
+                      </div>
+                      <div>
+                        <dt>Ordered by</dt>
+                        <dd>{selectedYouthIslandBooking.orderedByName || selectedYouthIslandBooking.orderedByEmail || 'None'}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="admin-detail-section">
+                      <h4>Serveringer</h4>
+                      {(!selectedYouthIslandBooking.items || selectedYouthIslandBooking.items.length === 0) && (
+                        <div className="request-products-state">No service lines attached to this booking.</div>
+                      )}
+                      {selectedYouthIslandBooking.items?.length > 0 && (
+                        <ul className="admin-product-list">
+                          {selectedYouthIslandBooking.items.map((item, index) => (
+                            <li key={item.id || `${selectedYouthIslandBooking.id}-${index}`}>
+                              <div>
+                                <strong>{item.productName || item.menu || 'Servering'}</strong>
+                                <small>{[item.servingTime, item.room, item.menu].filter(Boolean).join(' · ')}</small>
+                              </div>
+                              <span>{item.guestCount || 0}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    {selectedYouthIslandBooking.notes && (
+                      <div className="admin-detail-section">
+                        <h4>Notes</h4>
+                        <p>{selectedYouthIslandBooking.notes}</p>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="profile-empty">Click an event to see the overview.</div>

@@ -18,4 +18,7 @@ export const userApi = {
     method: 'PUT',
     body: JSON.stringify(user),
   }),
+  setYouthIsland: (id) => apiRequest(`/user/${id}/youth-island`, {
+    method: 'PUT',
+  }),
 };

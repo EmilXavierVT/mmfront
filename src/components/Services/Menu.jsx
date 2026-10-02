@@ -49,9 +49,7 @@ export function Menu({ cart, products, loading, error, onAdd, onRetry }) {
             return (
               <article className="dish" key={d.id}>
                 <div className="swatch">
-                  <div className="blob" style={{background: d.color}}>
-                    {d.name.split(' ')[0].slice(0,1).toUpperCase()}
-                  </div>
+                  <img src={d.imageUrl} alt={d.imageAlt || d.name} />
                 </div>
                 <div className="body">
                   <h5>{d.name}</h5>

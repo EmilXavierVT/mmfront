@@ -14,6 +14,7 @@ const PAGE_PATHS = {
   profile: '/profile',
   employee: '/employee',
   admin: '/admin',
+  youthIsland: '/youth-island',
 };
 
 const FAQ_ITEMS = [
@@ -84,6 +85,12 @@ const SEO_CONTENT = {
     title: 'Admin | Morgendagens Måltid',
     description: 'Morgendagens Måltid admin area.',
     keywords: 'Morgendagens Måltid admin',
+    robots: 'noindex,nofollow',
+  },
+  youthIsland: {
+    title: 'Ungdomsøen | Morgendagens Måltid',
+    description: 'Protected booking area for Ungdomsøen.',
+    keywords: 'Ungdomsøen booking',
     robots: 'noindex,nofollow',
   },
 };

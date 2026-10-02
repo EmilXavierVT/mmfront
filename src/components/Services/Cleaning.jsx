@@ -95,6 +95,9 @@ export function Cleaning({ products, loading, error, user, onRetry, onBook, onCl
           <div className="cleaning-product-grid">
             {products.map((product) => (
               <article className="cleaning-product" key={product.id}>
+                {product.imageUrl && (
+                  <img src={product.imageUrl} alt={product.imageAlt || product.name} />
+                )}
                 <h3>{product.name}</h3>
                 <p>{product.desc || 'Custom cleaning plan quoted around the size and state of the space.'}</p>
                 <strong>{product.price} kr</strong>

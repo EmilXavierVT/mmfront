@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Icon } from '../Shared/Icon.jsx';
 
-export function Topbar({ user, isAdmin = false, onAccount, accountPath = '/profile' }) {
+export function Topbar({ user, isAdmin = false, showYouthIsland = false, onAccount, accountPath = '/profile' }) {
   return (
     <header className="topbar">
       <div className="nav-left">
@@ -17,6 +17,11 @@ export function Topbar({ user, isAdmin = false, onAccount, accountPath = '/profi
         {isAdmin && (
           <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/admin">
             <Icon name="user" size={16} /><span>Admin</span>
+          </NavLink>
+        )}
+        {showYouthIsland && (
+          <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/youth-island">
+            <Icon name="clipboard" size={16} /><span>Ungdomsøen</span>
           </NavLink>
         )}
       </div>

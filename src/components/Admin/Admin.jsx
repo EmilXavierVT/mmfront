@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { emailApi } from '../../api/email.js';
 import { quoteRequestApi } from '../../api/requests.js';
 import { subscriptionDealApi } from '../../api/subscriptionDeals.js';
@@ -16,6 +16,7 @@ import { getProductYear } from '../../lib/products.js';
 import {
   useAdminRequests,
   useAdminUsers,
+  useAdminYouthIslandBookings,
   useEconomicCustomers,
   useLazyCustomerRequests,
   useLazyRequestProducts,
@@ -55,6 +56,7 @@ function getRoleLabel(role) {
   if (role === 'EMPLOYEE') return 'employee';
   if (role === 'CLEANING_STAFF') return 'employee';
   if (role === 'ADMIN') return 'admin';
+  if (role === 'YOUTH_ISLAND') return 'Ungdomsøen user';
   return 'user';
 }
 
@@ -154,7 +156,7 @@ export function Admin({
 }) {
   const [adminTab, setAdminTab] = useState('requests');
   const [selectedRequestId, setSelectedRequestId] = useState(null);
-  const [selectedCalendarRequestId, setSelectedCalendarRequestId] = useState(null);
+  const [selectedCalendarEventKey, setSelectedCalendarEventKey] = useState(null);
   const [selectedHistoryRequestId, setSelectedHistoryRequestId] = useState(null);
   const [selectedCustomerKey, setSelectedCustomerKey] = useState(null);
   const [calendarCursor, setCalendarCursor] = useState(null);
@@ -195,6 +197,12 @@ export function Admin({
     loadUsers,
   } = useAdminUsers();
   const {
+    youthIslandBookings,
+    youthIslandBookingsLoading,
+    youthIslandBookingsError,
+    loadYouthIslandBookings,
+  } = useAdminYouthIslandBookings();
+  const {
     customers: economicCustomers,
     customersLoading: economicCustomersLoading,
     customersError: economicCustomersError,
@@ -213,6 +221,33 @@ export function Admin({
       .sort((a, b) => new Date(a.startDate || 0) - new Date(b.startDate || 0)),
     [requests],
   );
+
+  const youthIslandCalendarBookings = useMemo(
+    () => youthIslandBookings
+      .filter(booking => booking.eventDate)
+      .sort((a, b) => (
+        String(a.eventDate || '').localeCompare(String(b.eventDate || '')) || Number(a.id || 0) - Number(b.id || 0)
+      )),
+    [youthIslandBookings],
+  );
+
+  const calendarEvents = useMemo(() => [
+    ...acceptedRequests.map(request => ({
+      key: `request-${request.id || `${request.startDate}-${request.location}`}`,
+      kind: 'request',
+      startDate: request.startDate,
+      request,
+    })),
+    ...youthIslandCalendarBookings.map(booking => ({
+      key: `youth-island-${booking.id || `${booking.eventDate}-${booking.customerName}`}`,
+      kind: 'youthIsland',
+      startDate: booking.eventDate,
+      booking,
+    })),
+  ].sort((a, b) => (
+    new Date(a.startDate || 0) - new Date(b.startDate || 0)
+    || String(a.key).localeCompare(String(b.key))
+  )), [acceptedRequests, youthIslandCalendarBookings]);
 
   const historyRequests = useMemo(
     () => requests
@@ -241,10 +276,14 @@ export function Admin({
     [selectedRequestId, unansweredTypeOneRequests],
   );
 
-  const selectedCalendarRequest = useMemo(
-    () => acceptedRequests.find(request => request.id === selectedCalendarRequestId) || acceptedRequests[0] || null,
-    [acceptedRequests, selectedCalendarRequestId],
+  const selectedCalendarEvent = useMemo(
+    () => calendarEvents.find(event => event.key === selectedCalendarEventKey) || calendarEvents[0] || null,
+    [calendarEvents, selectedCalendarEventKey],
   );
+
+  const selectedCalendarRequest = selectedCalendarEvent?.kind === 'request'
+    ? selectedCalendarEvent.request
+    : null;
 
   const selectedHistoryRequest = useMemo(
     () => historyRequests.find(request => request.id === selectedHistoryRequestId) || historyRequests[0] || null,
@@ -376,26 +415,26 @@ export function Admin({
     ? Object.entries(selectedRequest).filter(([key]) => !hiddenDetailKeys.has(key))
     : [];
 
-  const acceptedRequestsByDay = useMemo(() => acceptedRequests.reduce((acc, request) => {
-    const key = getDateKey(request.startDate);
+  const calendarEventsByDay = useMemo(() => calendarEvents.reduce((acc, event) => {
+    const key = getDateKey(event.startDate);
     if (!key) return acc;
 
     return {
       ...acc,
-      [key]: [...(acc[key] || []), request],
+      [key]: [...(acc[key] || []), event],
     };
-  }, {}), [acceptedRequests]);
+  }, {}), [calendarEvents]);
 
   const displayedCalendarCursor = useMemo(() => {
     if (calendarCursor) return calendarCursor;
 
-    const selectedDate = new Date(selectedCalendarRequest?.startDate);
+    const selectedDate = new Date(selectedCalendarEvent?.startDate);
     if (!Number.isNaN(selectedDate.getTime())) {
       return new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
     }
 
     return new Date();
-  }, [calendarCursor, selectedCalendarRequest]);
+  }, [calendarCursor, selectedCalendarEvent]);
 
   const calendarDays = useMemo(() => getMonthDays(displayedCalendarCursor), [displayedCalendarCursor]);
 
@@ -459,6 +498,13 @@ export function Admin({
     resetCustomerRequestStates();
     await loadUsers();
   };
+
+  const refreshCalendar = useCallback(async () => {
+    await Promise.all([
+      loadRequests(),
+      loadYouthIslandBookings(),
+    ]);
+  }, [loadRequests, loadYouthIslandBookings]);
 
   const updateSelectedRequestStatus = async (status, statusName, actionName) => {
     if (!selectedRequest?.id || updatingRequest) return;
@@ -634,6 +680,26 @@ export function Admin({
     }
   };
 
+  const makeUserYouthIsland = async (selectedUser) => {
+    if (!selectedUser?.id || settingAdminUserId) return;
+
+    setSettingAdminUserId(selectedUser.id);
+    setUserError('');
+    setUserSuccess('');
+
+    try {
+      await userApi.setYouthIsland(selectedUser.id);
+      const refreshedUsers = await userApi.getAll();
+      setUsers(Array.isArray(refreshedUsers) ? refreshedUsers : users);
+      setSelectedCustomerKey(selectedUser.key);
+      setUserSuccess(`${selectedUser.email} can now use the Ungdomsøen booking page.`);
+    } catch (err) {
+      setUserError(err.message || 'Could not add the Ungdomsøen role.');
+    } finally {
+      setSettingAdminUserId(null);
+    }
+  };
+
   const moveCalendarMonth = (direction) => {
     setCalendarCursor(current => {
       const base = current || displayedCalendarCursor;
@@ -674,17 +740,18 @@ export function Admin({
 
       {adminTab === 'calendar' && (
         <CalendarPanel
-          acceptedRequests={acceptedRequests}
-          selectedCalendarRequest={selectedCalendarRequest}
+          youthIslandBookings={youthIslandCalendarBookings}
+          calendarEvents={calendarEvents}
+          selectedCalendarEvent={selectedCalendarEvent}
           selectedCalendarProductsState={selectedCalendarProductsState}
-          requestsLoading={requestsLoading}
-          requestsError={requestsError}
+          requestsLoading={requestsLoading || youthIslandBookingsLoading}
+          requestsError={requestsError || youthIslandBookingsError}
           displayedCalendarCursor={displayedCalendarCursor}
           calendarDays={calendarDays}
-          acceptedRequestsByDay={acceptedRequestsByDay}
-          onRefresh={loadRequests}
+          calendarEventsByDay={calendarEventsByDay}
+          onRefresh={refreshCalendar}
           onMoveMonth={moveCalendarMonth}
-          onSelectRequest={setSelectedCalendarRequestId}
+          onSelectEvent={setSelectedCalendarEventKey}
         />
       )}
 
@@ -723,6 +790,7 @@ export function Admin({
           onSelectCustomer={setSelectedCustomerKey}
           onMakeAdmin={makeUserAdmin}
           onMakeEmployee={makeUserEmployee}
+          onMakeYouthIsland={makeUserYouthIsland}
         />
       )}
 

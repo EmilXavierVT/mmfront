@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { quoteRequestApi } from '../../api/requests.js';
 import { userApi } from '../../api/users.js';
 import { economicCustomerApi } from '../../api/economicCustomers.js';
+import { youthIslandBookingApi } from '../../api/youthIslandBookings.js';
 import {
   getRequestUpdatePayload,
   hasPassedEndTime,
@@ -203,6 +204,65 @@ export function useAdminRequests() {
     setStatusUpdateError,
     historyUpdateError,
     loadRequests,
+  };
+}
+
+export function useAdminYouthIslandBookings() {
+  const [youthIslandBookings, setYouthIslandBookings] = useState([]);
+  const [youthIslandBookingsLoading, setYouthIslandBookingsLoading] = useState(true);
+  const [youthIslandBookingsError, setYouthIslandBookingsError] = useState('');
+
+  const loadYouthIslandBookings = useCallback(async () => {
+    setYouthIslandBookingsLoading(true);
+    setYouthIslandBookingsError('');
+
+    try {
+      const data = await youthIslandBookingApi.getAll();
+      setYouthIslandBookings(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setYouthIslandBookingsError(err.message || 'Could not load Ungdomsøen bookings.');
+    } finally {
+      setYouthIslandBookingsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function initializeYouthIslandBookings() {
+      if (!ignore) {
+        setYouthIslandBookingsLoading(true);
+        setYouthIslandBookingsError('');
+      }
+
+      try {
+        const data = await youthIslandBookingApi.getAll();
+        if (!ignore) {
+          setYouthIslandBookings(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setYouthIslandBookingsError(err.message || 'Could not load Ungdomsøen bookings.');
+        }
+      } finally {
+        if (!ignore) {
+          setYouthIslandBookingsLoading(false);
+        }
+      }
+    }
+
+    initializeYouthIslandBookings();
+
+    return () => {
+      ignore = true;
+    };
+  }, [loadYouthIslandBookings]);
+
+  return {
+    youthIslandBookings,
+    youthIslandBookingsLoading,
+    youthIslandBookingsError,
+    loadYouthIslandBookings,
   };
 }
 

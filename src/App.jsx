@@ -23,7 +23,9 @@ import { Testimonials } from './components/Marketing/Testimonials.jsx';
 import { Topbar } from './components/Layout/Topbar.jsx';
 import { Trust } from './components/Marketing/Trust.jsx';
 import { TweaksUI } from './components/TweaksUI/TweaksUI.jsx';
+import { YouthIsland } from './components/YouthIsland/YouthIsland.jsx';
 import { CLEANING_PRODUCT_TYPE, normalizeProduct } from './lib/products.js';
+import { isPublicProduct, toPublicProduct } from './lib/publicProducts.js';
 import { TWEAK_DEFAULTS } from './lib/tweaks.js';
 import { useTweaks } from './use-tweaks.js';
 
@@ -35,6 +37,7 @@ const ROUTES = {
   '/profile': 'profile',
   '/employee': 'employee',
   '/admin': 'admin',
+  '/youth-island': 'youthIsland',
 };
 
 const PAGE_PATHS = {
@@ -45,6 +48,7 @@ const PAGE_PATHS = {
   profile: '/profile',
   employee: '/employee',
   admin: '/admin',
+  youthIsland: '/youth-island',
 };
 
 function isEmployeeRole(role) {
@@ -70,12 +74,25 @@ function hasUserRole(user, expectedRole) {
 
 function getUserHomePage(user) {
   if (hasUserRole(user, 'ADMIN')) return 'admin';
+  if (hasUserRole(user, 'YOUTH_ISLAND')) return 'youthIsland';
   if (getUserRoles(user).some(isEmployeeRole)) return 'employee';
   return 'profile';
 }
 
-function Page({ children }) {
-  return <div className="page">{children}</div>;
+function YouthIslandPage({ user }) {
+  if (!user || (!hasUserRole(user, 'ADMIN') && !hasUserRole(user, 'YOUTH_ISLAND'))) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <Page className="youth-island-shell">
+      <YouthIsland user={user} />
+    </Page>
+  );
+}
+
+function Page({ children, className = '' }) {
+  return <div className={`page ${className}`.trim()}>{children}</div>;
 }
 
 function AdminPage({
@@ -266,15 +283,23 @@ export default function App() {
   const toastTimeoutRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
   const cateringProducts = useMemo(
-    () => products.filter((product) => Number(product.type) !== CLEANING_PRODUCT_TYPE),
+    () => products
+      .filter(isPublicProduct)
+      .filter((product) => Number(product.type) !== CLEANING_PRODUCT_TYPE)
+      .map(toPublicProduct),
     [products],
   );
   const cleaningProducts = useMemo(
-    () => products.filter((product) => Number(product.type) === CLEANING_PRODUCT_TYPE),
+    () => products
+      .filter(isPublicProduct)
+      .filter((product) => Number(product.type) === CLEANING_PRODUCT_TYPE)
+      .map(toPublicProduct),
     [products],
   );
   const isAdmin = hasUserRole(user, 'ADMIN');
+  const canUseYouthIsland = isAdmin || hasUserRole(user, 'YOUTH_ISLAND');
   const accountPage = getUserHomePage(user);
+  const isYouthIslandRoute = active === 'youthIsland';
 
   const loadProducts = useCallback(async () => {
     setProductsLoading(true);
@@ -406,6 +431,7 @@ export default function App() {
       <Topbar
         user={user}
         isAdmin={isAdmin}
+        showYouthIsland={canUseYouthIsland}
         accountPath={PAGE_PATHS[accountPage] || PAGE_PATHS.profile}
         onAccount={() => openAuth()}
       />
@@ -423,6 +449,10 @@ export default function App() {
               onProductsChanged={loadProducts}
             />
           )}
+        />
+        <Route
+          path="/youth-island"
+          element={<YouthIslandPage user={user} />}
         />
         <Route
           path="/profile"
@@ -496,7 +526,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Footer onNav={navigateTo} />
+      {!isYouthIslandRoute && <Footer onNav={navigateTo} />}
       <TweaksUI tweaks={tweaks} setTweak={setTweak} />
       {authOpen && (
         <AuthModal

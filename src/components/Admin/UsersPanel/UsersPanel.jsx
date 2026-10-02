@@ -1,5 +1,5 @@
 import { Icon } from '../../Shared/Icon.jsx';
-import { formatDate, getStatus, getType, isAdminUser, isEmployeeUser } from '../adminUtils.js';
+import { formatDate, getStatus, getType, isAdminUser, isEmployeeUser, isYouthIslandUser } from '../adminUtils.js';
 
 export function UsersPanel({
   customers,
@@ -22,6 +22,7 @@ export function UsersPanel({
   onSelectCustomer,
   onMakeAdmin,
   onMakeEmployee,
+  onMakeYouthIsland,
 }) {
   const isCleaningClientForm = userForm.role === 'CLEANING_CLIENT';
   const isSubscriberForm = isCleaningClientForm && userForm.cleaningClientType === 'SUBSCRIBER';
@@ -100,6 +101,7 @@ export function UsersPanel({
                   <option value="CLEANING_CLIENT">Cleaning customer</option>
                   <option value="EMPLOYEE">Employee</option>
                   <option value="CLEANING_STAFF">Cleaning staff</option>
+                  <option value="YOUTH_ISLAND">Ungdomsøen</option>
                 </select>
               </div>
               {isCleaningClientForm && (
@@ -219,6 +221,17 @@ export function UsersPanel({
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make admin'}
                                 <Icon name="check" size={18} />
+                              </button>
+                            )}
+                            {!isYouthIslandUser(selectedCustomer) && (
+                              <button
+                                className="btn btn-ghost"
+                                type="button"
+                                onClick={() => onMakeYouthIsland(selectedCustomer)}
+                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                              >
+                                {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Add Ungdomsøen'}
+                                <Icon name="clipboard" size={18} />
                               </button>
                             )}
                           </div>

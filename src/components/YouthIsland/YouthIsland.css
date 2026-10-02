@@ -1,0 +1,984 @@
+.youth-island-shell {
+  display: flex;
+  justify-content: center;
+  max-width: none;
+  height: calc(100vh - 64px);
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 28px;
+  width: 100%;
+}
+
+.youth-island-page {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
+  max-width: 1200px;
+  overflow: hidden;
+  padding: 28px 0 24px;
+  width: 100%;
+}
+
+.youth-island-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 2px solid var(--ink);
+  padding: 6px 0 22px;
+}
+
+.youth-island-head h1 {
+  margin: 0;
+  font-size: clamp(38px, 5vw, 60px);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.youth-island-head p {
+  margin: 12px 0 0;
+  color: rgba(34, 29, 31, 0.65);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.youth-island-count {
+  display: grid;
+  min-width: 160px;
+  border-left: 2px solid var(--ink);
+  padding: 4px 0 4px 24px;
+}
+
+.youth-island-count strong {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.youth-island-count span,
+.youth-section-head span,
+.youth-service-heading span,
+.youth-submit-row span {
+  color: var(--pink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.youth-page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 2px solid var(--ink);
+  margin-top: 18px;
+}
+
+.youth-page-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  color: rgba(34, 29, 31, 0.62);
+  cursor: pointer;
+  font-weight: 800;
+  margin-bottom: -2px;
+  min-height: 44px;
+  min-width: 136px;
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+
+.youth-page-tabs button:hover {
+  color: var(--ink);
+}
+
+.youth-page-tabs button.active,
+.youth-page-tabs button[aria-current="page"] {
+  background: var(--cream-3);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.youth-tab-panel {
+  min-height: 0;
+  margin-top: 0;
+}
+
+.youth-booking-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.8fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.youth-booking-workspace.youth-tab-panel {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.youth-booking-form {
+  background: var(--cream-3);
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  box-shadow: var(--soft-shadow);
+  max-height: 100%;
+  overflow: auto;
+  padding: 28px;
+}
+
+.youth-section-head,
+.youth-service-heading,
+.youth-submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.youth-section-head {
+  border-bottom: 1px solid var(--soft-border);
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+}
+
+.youth-section-head h2,
+.youth-service-heading h3 {
+  margin: 6px 0 0;
+  line-height: 1;
+}
+
+.youth-section-head h2 {
+  font-size: 30px;
+}
+
+.youth-section-head > strong {
+  background: var(--mint);
+  border: 1px solid rgba(34, 29, 31, 0.22);
+  border-radius: 999px;
+  padding: 9px 13px;
+  font-size: 13px;
+}
+
+.youth-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 16px;
+}
+
+.youth-field-wide {
+  grid-column: 1 / -1;
+}
+
+.youth-service-section {
+  border-top: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  margin: 14px 0 24px;
+  padding: 24px 0;
+}
+
+.youth-service-heading {
+  margin-bottom: 18px;
+}
+
+.youth-service-heading h3 {
+  font-size: 24px;
+}
+
+.youth-service-heading .btn,
+.youth-history-head .btn {
+  border: 1px solid rgba(34, 29, 31, 0.18);
+  box-shadow: none;
+  padding: 11px 15px;
+}
+
+.youth-service-list {
+  display: grid;
+  gap: 10px;
+}
+
+.youth-service-row {
+  display: grid;
+  grid-template-columns: 34px minmax(68px, 0.45fr) minmax(88px, 0.5fr) minmax(140px, 1.25fr) minmax(140px, 1.15fr) minmax(112px, 0.85fr) 38px;
+  gap: 10px;
+  align-items: end;
+  background: var(--white);
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.youth-service-row .field {
+  min-width: 0;
+  margin: 0;
+}
+
+.youth-service-product select {
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+
+.youth-service-number {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: var(--blue);
+  border-radius: 50%;
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.youth-remove-service {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--soft-border);
+  border-radius: 50%;
+  color: var(--coral);
+}
+
+.youth-remove-service:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
+}
+
+.youth-final-fields {
+  grid-template-columns: minmax(210px, 0.6fr) minmax(0, 1.4fr);
+}
+
+.youth-final-fields .youth-field-wide {
+  grid-column: auto;
+}
+
+.youth-submit-row {
+  border-top: 1px solid var(--soft-border);
+  margin-top: 8px;
+  padding-top: 22px;
+}
+
+.youth-submit-row > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.youth-submit-row strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.youth-submit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.youth-booking-preview {
+  min-width: 0;
+  max-height: 100%;
+  overflow: auto;
+  background: var(--cream-2);
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  box-shadow: var(--soft-shadow);
+  padding: 20px;
+}
+
+.youth-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.youth-preview-head span,
+.youth-document-top span,
+.youth-document-section h4,
+.youth-document-footer span {
+  color: var(--pink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.youth-preview-head h2 {
+  margin: 4px 0 0;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.youth-preview-head .btn {
+  border: 1px solid rgba(34, 29, 31, 0.18);
+  box-shadow: none;
+  padding: 10px 14px;
+}
+
+.youth-document {
+  background: var(--white);
+  border: 1px solid rgba(34, 29, 31, 0.18);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 24px;
+}
+
+.youth-document-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 16px;
+}
+
+.youth-document-top strong {
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.youth-document h3 {
+  margin: 22px 0 16px;
+  font-size: 30px;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.youth-document-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 22px;
+}
+
+.youth-document-meta > div {
+  background: var(--cream);
+  border: 1px solid var(--soft-border);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.youth-document-meta dt {
+  margin-bottom: 4px;
+  color: rgba(34, 29, 31, 0.58);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.youth-document-meta dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.youth-document-section {
+  border-top: 1px solid var(--soft-border);
+  padding: 18px 0;
+}
+
+.youth-document-section h4 {
+  margin: 0 0 10px;
+}
+
+.youth-document-section p {
+  margin: 0;
+  color: rgba(34, 29, 31, 0.76);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.youth-document-lines {
+  display: grid;
+  gap: 10px;
+}
+
+.youth-document-lines > div {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid var(--mint);
+  padding-left: 11px;
+}
+
+.youth-document-lines strong {
+  font-size: 14px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.youth-document-lines span {
+  color: var(--blue-2);
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.youth-document-footer {
+  display: grid;
+  gap: 4px;
+  border-top: 2px solid var(--ink);
+  padding-top: 16px;
+}
+
+.youth-document-footer strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.youth-upcoming-overview {
+  background: var(--cream-3);
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  box-shadow: var(--soft-shadow);
+  height: 100%;
+  max-height: none;
+  overflow: auto;
+  padding: 24px;
+}
+
+.youth-upcoming-head {
+  align-items: center;
+}
+
+.youth-upcoming-head > strong {
+  background: var(--mint);
+  border: 1px solid rgba(34, 29, 31, 0.22);
+  border-radius: 999px;
+  padding: 9px 13px;
+  font-size: 13px;
+}
+
+.youth-upcoming-list {
+  display: grid;
+  gap: 8px;
+  border-top: 2px solid var(--ink);
+  margin-top: 18px;
+}
+
+.youth-upcoming-item {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.45fr) minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  border-bottom: 1px solid rgba(34, 29, 31, 0.18);
+  min-height: 74px;
+  padding: 12px 4px;
+}
+
+.youth-upcoming-item time {
+  color: var(--blue-2);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.youth-upcoming-item > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.youth-upcoming-item strong {
+  font-size: 17px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.youth-upcoming-item span {
+  color: rgba(34, 29, 31, 0.66);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.youth-upcoming-item .btn {
+  border: 1px solid rgba(34, 29, 31, 0.18);
+  box-shadow: none;
+  padding: 10px 14px;
+}
+
+.youth-booking-history {
+  background: var(--cream-3);
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  box-shadow: var(--soft-shadow);
+  height: 100%;
+  max-height: none;
+  overflow: auto;
+  padding: 24px;
+}
+
+.youth-history-head {
+  align-items: center;
+}
+
+.youth-history-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 2px solid var(--ink);
+  margin: 18px 0 0;
+}
+
+.youth-history-tabs button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  color: rgba(34, 29, 31, 0.62);
+  cursor: pointer;
+  font-weight: 800;
+  margin-bottom: -2px;
+  min-height: 44px;
+  padding: 12px 16px;
+}
+
+.youth-history-tabs button:hover {
+  color: var(--ink);
+}
+
+.youth-history-tabs button.active,
+.youth-history-tabs button[aria-selected="true"] {
+  background: var(--cream-3);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.youth-history-list {
+  display: grid;
+}
+
+.youth-history-item {
+  border-bottom: 1px solid rgba(34, 29, 31, 0.22);
+}
+
+.youth-history-item summary {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(0, 1.5fr) 24px;
+  align-items: center;
+  gap: 22px;
+  min-height: 94px;
+  padding: 16px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.youth-history-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.youth-history-item summary:hover {
+  background: rgba(73, 125, 166, 0.08);
+}
+
+.youth-history-item summary > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.youth-history-item summary span {
+  color: var(--blue-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.youth-history-item summary strong {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.youth-history-item summary dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.youth-history-item summary dt,
+.youth-history-meta dt {
+  margin-bottom: 4px;
+  color: rgba(34, 29, 31, 0.6);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.youth-history-item summary dd,
+.youth-history-meta dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.youth-history-item[open] summary > svg {
+  transform: rotate(90deg);
+}
+
+.youth-history-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 24px;
+  background: var(--white);
+  border: 1px solid var(--soft-border);
+  border-bottom: 0;
+  padding: 22px;
+}
+
+.youth-history-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.youth-history-meta > div {
+  border-bottom: 1px solid var(--soft-border);
+  padding-bottom: 12px;
+}
+
+.youth-history-meta .youth-history-wide {
+  grid-column: 1 / -1;
+}
+
+.youth-history-services {
+  display: grid;
+  gap: 8px;
+}
+
+.youth-history-services > div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.55fr) minmax(130px, 0.7fr) minmax(0, 1.4fr);
+  gap: 12px;
+  align-items: start;
+  border-left: 3px solid var(--mint);
+  padding: 9px 0 9px 12px;
+}
+
+.youth-history-services strong,
+.youth-history-services span,
+.youth-history-services p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.youth-history-services span {
+  color: rgba(34, 29, 31, 0.65);
+}
+
+.youth-history-services p {
+  display: grid;
+  gap: 2px;
+}
+
+.youth-history-services p b {
+  font-size: 13px;
+}
+
+.youth-history-services p small {
+  color: rgba(34, 29, 31, 0.58);
+  font-size: 11px;
+}
+
+.youth-history-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  border-top: 1px solid var(--soft-border);
+  padding-top: 16px;
+}
+
+.youth-history-actions .btn {
+  border: 1px solid rgba(34, 29, 31, 0.18);
+  box-shadow: none;
+  padding: 11px 15px;
+}
+
+.youth-schedule-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.youth-schedule-item {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.42fr) minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  background: var(--cream-3);
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  box-shadow: var(--soft-shadow);
+  padding: 16px;
+}
+
+.youth-schedule-item time {
+  display: grid;
+  gap: 5px;
+}
+
+.youth-schedule-item time strong {
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.youth-schedule-item time span {
+  color: var(--blue-2);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.youth-schedule-body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.youth-schedule-body h3 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.youth-schedule-body dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.youth-schedule-body dt {
+  color: rgba(34, 29, 31, 0.58);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.youth-schedule-body dd {
+  margin: 3px 0 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.youth-schedule-services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.youth-schedule-services span {
+  background: var(--white);
+  border: 1px solid var(--soft-border);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.25;
+  padding: 7px 10px;
+}
+
+.youth-schedule-item .btn {
+  border: 1px solid rgba(34, 29, 31, 0.18);
+  box-shadow: none;
+  padding: 11px 15px;
+}
+
+@media (max-width: 1220px) {
+  .youth-service-row {
+    grid-template-columns: 34px minmax(72px, 0.6fr) minmax(92px, 0.7fr) minmax(0, 1fr) 38px;
+  }
+
+  .youth-service-product,
+  .youth-service-menu {
+    grid-column: 2 / span 3;
+  }
+
+  .youth-service-row .field:last-of-type {
+    grid-column: 4;
+  }
+}
+
+@media (max-width: 960px) {
+  .youth-island-shell {
+    height: auto;
+    overflow: visible;
+  }
+
+  .youth-island-page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .youth-booking-workspace.youth-tab-panel,
+  .youth-upcoming-overview,
+  .youth-booking-history {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .youth-booking-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .youth-service-row {
+    grid-template-columns: 34px repeat(2, minmax(0, 1fr)) 38px;
+  }
+
+  .youth-service-product,
+  .youth-service-menu {
+    grid-column: 2 / span 2;
+  }
+
+  .youth-service-row .field:last-of-type {
+    grid-column: 2 / span 2;
+  }
+
+  .youth-history-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .youth-upcoming-item {
+    grid-template-columns: 1fr auto;
+  }
+
+  .youth-upcoming-item time {
+    grid-column: 1 / -1;
+  }
+
+  .youth-schedule-item {
+    grid-template-columns: 1fr;
+  }
+
+  .youth-schedule-item .btn {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .youth-island-head,
+  .youth-section-head,
+  .youth-service-heading,
+  .youth-submit-row,
+  .youth-upcoming-head,
+  .youth-history-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .youth-island-count {
+    border-left: 0;
+    border-top: 1px solid var(--soft-border);
+    padding: 14px 0 0;
+  }
+
+  .youth-booking-form,
+  .youth-booking-preview,
+  .youth-document,
+  .youth-upcoming-overview,
+  .youth-booking-history {
+    padding: 20px;
+  }
+
+  .youth-preview-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .youth-preview-head .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .youth-field-grid,
+  .youth-final-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .youth-field-wide,
+  .youth-final-fields .youth-field-wide {
+    grid-column: auto;
+  }
+
+  .youth-service-row {
+    grid-template-columns: 34px minmax(0, 1fr) 38px;
+  }
+
+  .youth-service-row .field,
+  .youth-service-product,
+  .youth-service-menu {
+    grid-column: 2;
+  }
+
+  .youth-service-row .field:last-of-type {
+    grid-column: 2;
+  }
+
+  .youth-remove-service {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .youth-history-item summary {
+    grid-template-columns: minmax(0, 1fr) 24px;
+  }
+
+  .youth-history-item summary dl {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+
+  .youth-history-services > div,
+  .youth-history-meta,
+  .youth-document-meta,
+  .youth-schedule-body dl {
+    grid-template-columns: 1fr;
+  }
+
+  .youth-history-meta .youth-history-wide {
+    grid-column: auto;
+  }
+
+  .youth-submit-actions,
+  .youth-history-actions {
+    width: 100%;
+  }
+
+  .youth-upcoming-item {
+    grid-template-columns: 1fr;
+  }
+
+  .youth-upcoming-item .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .youth-submit-actions .btn,
+  .youth-history-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .youth-history-tabs button {
+    flex: 1 1 150px;
+  }
+
+  .youth-page-tabs button {
+    flex: 1 1 140px;
+  }
+}

@@ -376,6 +376,10 @@
   text-transform: uppercase;
 }
 
+.admin-status-pill.youth-island {
+  background: var(--mint);
+}
+
 .admin-detail-actions {
   display: flex;
   align-items: center;
@@ -593,6 +597,17 @@
 .admin-calendar-event.selected {
   background: var(--pink);
   color: var(--white);
+}
+
+.admin-calendar-event.youth-island {
+  background: var(--blue);
+  border-color: var(--blue-2);
+}
+
+.admin-calendar-event.youth-island:hover,
+.admin-calendar-event.youth-island.selected {
+  background: var(--mint);
+  color: var(--ink);
 }
 
 .admin-calendar-event strong,

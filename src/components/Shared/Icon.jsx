@@ -16,6 +16,9 @@ export function Icon({ name, size = 20 }) {
     arrow: <><path d="M5 12h14M13 5l7 7-7 7"/></>,
     x: <><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>,
     logout: <><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 3v18"/></>,
+    clipboard: <><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h4"/></>,
+    refresh: <><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/></>,
+    download: <><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></>,
   };
   return <svg {...common}>{paths[name]}</svg>;
 }

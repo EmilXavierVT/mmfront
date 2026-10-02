@@ -160,17 +160,15 @@
   overflow: hidden;
 }
 
-.dish .swatch .blob {
-  position: absolute;
-  inset: 18px;
-  border-radius: var(--r-stone-2);
-  opacity: 0.92;
-  display: grid;
-  place-items: center;
-  font-size: 56px;
-  color: var(--white);
-  font-weight: 800;
-  letter-spacing: -0.04em;
+.dish .swatch img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.dish:hover .swatch img {
+  transform: scale(1.04);
 }
 
 .dish .body {
@@ -632,17 +630,33 @@
   color: var(--ink);
   border: 2px solid var(--ink);
   border-radius: 14px;
-  padding: 24px;
+  overflow: hidden;
+}
+
+.cleaning-product img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.cleaning-product h3,
+.cleaning-product p,
+.cleaning-product strong {
+  display: block;
+  margin-left: 24px;
+  margin-right: 24px;
 }
 
 .cleaning-product h3 {
-  margin: 0 0 12px;
+  margin-top: 24px;
+  margin-bottom: 12px;
   font-size: 24px;
   line-height: 1;
 }
 
 .cleaning-product p {
-  margin: 0 0 22px;
+  margin-top: 0;
+  margin-bottom: 22px;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
@@ -650,6 +664,7 @@
 }
 
 .cleaning-product strong {
+  margin-bottom: 24px;
   color: var(--pink);
   font-size: 22px;
 }
