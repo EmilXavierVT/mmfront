@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cleaningAppointmentApi } from '../../api/cleaningAppointments.js';
+import { subscriptionDealApi } from '../../api/subscriptionDeals.js';
 import { userApi } from '../../api/users.js';
 import { Icon } from '../Shared/Icon.jsx';
 import {
@@ -13,6 +14,7 @@ import {
   getUserId,
   getUserLastName,
   isCleaningClientUser,
+  isSubscriberUser,
 } from '../Admin/adminUtils.js';
 
 const DURATION_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
@@ -92,6 +94,8 @@ function buildCleaningClientSummaries(users) {
       email: getUserEmail(user),
       firstName: getUserFirstName(user),
       lastName: getUserLastName(user),
+      subscriber: isSubscriberUser(user),
+      visitsPerMonth: getSubscriptionDealVisitsPerMonth(user?.subscriptionDealDTO || user?.subscriptionDeal || user),
     }))
     .filter((user) => user.id)
     .sort((a, b) => getClientName(a).localeCompare(getClientName(b)));
@@ -132,8 +136,89 @@ function normalizeAppointment(appointment) {
     cleaningClientId: parseOptionalId(appointment?.cleaningClientId),
     cleaningStaffId: parseOptionalId(appointment?.cleaningStaffId),
     durationMinutes: Number(appointment?.durationMinutes) || 0,
+    cancellationTime: appointment?.cancellationTime || null,
     vacation: Boolean(appointment?.vacation),
   };
+}
+
+function getMonthKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function normalizeListResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.content)) return data.content;
+  if (data && typeof data === 'object') {
+    const nestedList = Object.values(data).find(Array.isArray);
+    if (nestedList) return nestedList;
+    if (data.id != null) return [data];
+  }
+  return [];
+}
+
+function getSubscriptionDealUserId(deal) {
+  return deal?.userId
+    ?? deal?.userDTO?.id
+    ?? deal?.user?.id
+    ?? deal?.cleaningClientId
+    ?? deal?.cleaningClientDTO?.id
+    ?? null;
+}
+
+function getSubscriptionDealVisitsPerMonth(deal) {
+  return deal?.visitsPerMonth
+    ?? deal?.visits_per_month
+    ?? deal?.monthlyVisits
+    ?? deal?.visits
+    ?? null;
+}
+
+async function loadSubscriptionDeals() {
+  try {
+    const data = await subscriptionDealApi.getAll();
+    return { items: normalizeListResponse(data), error: '' };
+  } catch (err) {
+    return { items: [], error: err.message || 'Could not load subscription deals.' };
+  }
+}
+
+function getSubscriberVisitStatus(client, subscriptionDeal, visitCount, subscriptionDealState) {
+  if (!client?.subscriber) return 'Flex customer';
+
+  const clientVisitsPerMonth = Number(client?.visitsPerMonth) || 0;
+  if (clientVisitsPerMonth) {
+    const overage = visitCount - clientVisitsPerMonth;
+    return overage > 0
+      ? `${visitCount}/${clientVisitsPerMonth} visits this month · ${overage} over plan`
+      : `${visitCount}/${clientVisitsPerMonth} visits this month`;
+  }
+
+  if (subscriptionDealState.error) {
+    return `${visitCount} visit${visitCount === 1 ? '' : 's'} this month · subscription deals unavailable: ${subscriptionDealState.error}`;
+  }
+
+  if (!subscriptionDealState.loaded) {
+    return `${visitCount} visit${visitCount === 1 ? '' : 's'} this month · loading subscription deal`;
+  }
+
+  const visitsPerMonth = Number(getSubscriptionDealVisitsPerMonth(subscriptionDeal)) || 0;
+  if (!subscriptionDeal) {
+    return subscriptionDealState.count === 0
+      ? `${visitCount} visit${visitCount === 1 ? '' : 's'} this month · no subscription deals returned`
+      : `${visitCount} visit${visitCount === 1 ? '' : 's'} this month · no subscription deal for user #${client.id}`;
+  }
+
+  if (!visitsPerMonth) return `${visitCount} visits this month · subscription deal has no visits per month`;
+
+  const overage = visitCount - visitsPerMonth;
+  return overage > 0
+    ? `${visitCount}/${visitsPerMonth} visits this month · ${overage} over plan`
+    : `${visitCount}/${visitsPerMonth} visits this month`;
 }
 
 function isVisibleToCleaningStaff(appointment, cleaningStaffId) {
@@ -143,13 +228,18 @@ function isVisibleToCleaningStaff(appointment, cleaningStaffId) {
 export function CleaningSchedulePanel({ user }) {
   const cleaningStaffId = Number(user?.id || user?.userId);
   const [appointments, setAppointments] = useState([]);
+  const [allAppointments, setAllAppointments] = useState([]);
   const [users, setUsers] = useState([]);
+  const [subscriptionDeals, setSubscriptionDeals] = useState([]);
+  const [subscriptionDealsLoaded, setSubscriptionDealsLoaded] = useState(false);
+  const [subscriptionDealsError, setSubscriptionDealsError] = useState('');
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState('');
   const [scheduleSuccess, setScheduleSuccess] = useState('');
   const [savingAction, setSavingAction] = useState('');
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(() => getDateKey(new Date()));
+  const [runningMonthKey] = useState(() => getMonthKey(new Date()));
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
   const [appointmentForm, setAppointmentForm] = useState(() => buildInitialForm([], getDateKey(new Date())));
 
@@ -157,6 +247,13 @@ export function CleaningSchedulePanel({ user }) {
   const cleaningClientsById = useMemo(
     () => Object.fromEntries(cleaningClients.map((client) => [String(client.id), client])),
     [cleaningClients],
+  );
+  const subscriptionDealsByUserId = useMemo(
+    () => Object.fromEntries(subscriptionDeals
+      .map((deal) => [getSubscriptionDealUserId(deal), deal])
+      .filter(([userId]) => userId != null && userId !== '')
+      .map(([userId, deal]) => [String(userId), deal])),
+    [subscriptionDeals],
   );
 
   const sortedAppointments = useMemo(
@@ -185,6 +282,32 @@ export function CleaningSchedulePanel({ user }) {
     [sortedAppointments],
   );
   const selectedDayLabel = formatCalendarDay(selectedDateKey);
+  const runningMonthVisitsByClientId = useMemo(() => (
+    allAppointments.reduce((counts, appointment) => {
+      if (!appointment.cleaningClientId) return counts;
+      if (appointment.vacation || appointment.cancellationTime) return counts;
+      if (getMonthKey(appointment.appointmentTime) !== runningMonthKey) return counts;
+
+      const clientId = String(appointment.cleaningClientId);
+      counts[clientId] = (counts[clientId] || 0) + 1;
+      return counts;
+    }, {})
+  ), [allAppointments, runningMonthKey]);
+
+  function getClientVisitStatus(client) {
+    if (!client) return 'Client details unavailable';
+
+    return getSubscriberVisitStatus(
+      client,
+      subscriptionDealsByUserId[String(client.id)],
+      runningMonthVisitsByClientId[String(client.id)] || 0,
+      {
+        loaded: subscriptionDealsLoaded,
+        error: subscriptionDealsError,
+        count: subscriptionDeals.length,
+      },
+    );
+  }
 
   useEffect(() => {
     if (!cleaningStaffId) return;
@@ -196,22 +319,29 @@ export function CleaningSchedulePanel({ user }) {
       setScheduleError('');
 
       try {
-        const [userData, appointmentData] = await Promise.all([
+        const [userData, appointmentData, subscriptionDealResult] = await Promise.all([
           userApi.getAll(),
           cleaningAppointmentApi.getAll(),
+          loadSubscriptionDeals(),
         ]);
 
         if (ignore) return;
 
-        const nextUsers = Array.isArray(userData) ? userData : [];
-        const nextAppointments = Array.isArray(appointmentData)
-          ? appointmentData
+        const nextUsers = normalizeListResponse(userData);
+        const nextAppointmentData = normalizeListResponse(appointmentData);
+        const nextSubscriptionDeals = subscriptionDealResult.items;
+        const nextAppointments = nextAppointmentData.length
+          ? nextAppointmentData
             .map(normalizeAppointment)
             .filter((appointment) => isVisibleToCleaningStaff(appointment, cleaningStaffId))
           : [];
 
         setUsers(nextUsers);
+        setAllAppointments(nextAppointmentData.map(normalizeAppointment));
         setAppointments(nextAppointments);
+        setSubscriptionDeals(nextSubscriptionDeals);
+        setSubscriptionDealsLoaded(true);
+        setSubscriptionDealsError(subscriptionDealResult.error);
       } catch (err) {
         if (!ignore) {
           setScheduleError(err.message || 'Could not load your cleaning schedule.');
@@ -236,7 +366,11 @@ export function CleaningSchedulePanel({ user }) {
     }
 
     if (selectedAppointment) {
-      setSelectedDateKey(getDateKey(selectedAppointment.appointmentTime));
+      const timeout = window.setTimeout(() => {
+        setSelectedDateKey(getDateKey(selectedAppointment.appointmentTime));
+      }, 0);
+
+      return () => window.clearTimeout(timeout);
     }
   }, [selectedAppointment, selectedDateKey]);
 
@@ -244,20 +378,28 @@ export function CleaningSchedulePanel({ user }) {
     if (!selectedAppointmentId) return;
 
     if (!sortedAppointments.some((appointment) => appointment.id === selectedAppointmentId)) {
-      setSelectedAppointmentId(null);
+      const timeout = window.setTimeout(() => {
+        setSelectedAppointmentId(null);
+      }, 0);
+
+      return () => window.clearTimeout(timeout);
     }
   }, [selectedAppointmentId, sortedAppointments]);
 
   useEffect(() => {
     if (!cleaningClients.length) return;
 
-    setAppointmentForm((current) => {
-      if (current.cleaningClientId) return current;
-      return {
-        ...current,
-        cleaningClientId: String(cleaningClients[0].id),
-      };
-    });
+    const timeout = window.setTimeout(() => {
+      setAppointmentForm((current) => {
+        if (current.cleaningClientId) return current;
+        return {
+          ...current,
+          cleaningClientId: String(cleaningClients[0].id),
+        };
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [cleaningClients]);
 
   function startCreateAppointment(dateKey = selectedDateKey) {
@@ -290,13 +432,22 @@ export function CleaningSchedulePanel({ user }) {
     setScheduleError('');
 
     try {
-      const appointmentData = await cleaningAppointmentApi.getAll();
-      const nextAppointments = Array.isArray(appointmentData)
-        ? appointmentData
+      const [appointmentData, subscriptionDealResult] = await Promise.all([
+        cleaningAppointmentApi.getAll(),
+        loadSubscriptionDeals(),
+      ]);
+      const nextAppointmentData = normalizeListResponse(appointmentData);
+      const nextSubscriptionDeals = subscriptionDealResult.items;
+      const nextAppointments = nextAppointmentData.length
+        ? nextAppointmentData
           .map(normalizeAppointment)
           .filter((appointment) => isVisibleToCleaningStaff(appointment, cleaningStaffId))
         : [];
+      setAllAppointments(nextAppointmentData.map(normalizeAppointment));
       setAppointments(nextAppointments);
+      setSubscriptionDeals(nextSubscriptionDeals.length ? nextSubscriptionDeals : subscriptionDeals);
+      setSubscriptionDealsLoaded(true);
+      setSubscriptionDealsError(subscriptionDealResult.error);
       setScheduleSuccess(successMessage);
       return nextAppointments;
     } catch (err) {
@@ -545,7 +696,7 @@ export function CleaningSchedulePanel({ user }) {
                     >
                       <span>Unassigned visit</span>
                       <strong>{formatCalendarDay(appointment.appointmentTime)} · {formatTimeOnly(appointment.appointmentTime)}</strong>
-                      <small>{getClientName(client)}{client?.email ? ` · ${client.email}` : ''}</small>
+                      <small>{getClientName(client)}{client?.email ? ` · ${client.email}` : ''} · {getClientVisitStatus(client)}</small>
                     </button>
                   );
                 })}
@@ -582,7 +733,7 @@ export function CleaningSchedulePanel({ user }) {
                   {!cleaningClients.length && <option value="">No cleaning clients available</option>}
                   {cleaningClients.map((client) => (
                     <option key={client.id} value={client.id}>
-                      {getClientName(client)}
+                      {getClientName(client)}{client.subscriber ? ` · ${getClientVisitStatus(client)}` : ''}
                     </option>
                   ))}
                 </select>
@@ -753,7 +904,7 @@ export function CleaningSchedulePanel({ user }) {
                               }}
                             >
                               <strong>{formatTimeOnly(appointment.appointmentTime)}</strong>
-                              <small>{getClientName(client)}</small>
+                              <small>{getClientName(client)} · {getClientVisitStatus(client)}</small>
                             </button>
                           );
                         })}
@@ -791,6 +942,10 @@ export function CleaningSchedulePanel({ user }) {
                     <div>
                       <dt>Email</dt>
                       <dd>{cleaningClientsById[String(selectedAppointment.cleaningClientId)]?.email || 'Not available'}</dd>
+                    </div>
+                    <div>
+                      <dt>Monthly plan</dt>
+                      <dd>{getClientVisitStatus(cleaningClientsById[String(selectedAppointment.cleaningClientId)])}</dd>
                     </div>
                     <div>
                       <dt>Day</dt>
@@ -857,7 +1012,7 @@ export function CleaningSchedulePanel({ user }) {
                         >
                           <span>{appointment.cleaningStaffId ? (appointment.vacation ? 'Vacation visit' : 'Cleaning visit') : 'Unassigned visit'}</span>
                           <strong>{formatTimeOnly(appointment.appointmentTime)} · {formatDuration(appointment.durationMinutes)}</strong>
-                          <small>{getClientName(client)}{client?.email ? ` · ${client.email}` : ''}</small>
+                          <small>{getClientName(client)}{client?.email ? ` · ${client.email}` : ''} · {getClientVisitStatus(client)}</small>
                         </button>
                       );
                     })}
@@ -887,7 +1042,7 @@ export function CleaningSchedulePanel({ user }) {
                         >
                           <span>Unassigned visit</span>
                           <strong>{formatCalendarDay(appointment.appointmentTime)} · {formatTimeOnly(appointment.appointmentTime)}</strong>
-                          <small>{getClientName(client)}{client?.email ? ` · ${client.email}` : ''}</small>
+                          <small>{getClientName(client)}{client?.email ? ` · ${client.email}` : ''} · {getClientVisitStatus(client)}</small>
                         </button>
                       );
                     })}

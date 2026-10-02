@@ -45,6 +45,7 @@ function getProductName(item) {
 function getProductDescription(item) {
   return item?.productDTO?.description
     || item?.product?.description
+    || item?.productDescription
     || item?.description
     || '';
 }

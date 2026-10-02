@@ -26,7 +26,7 @@ Vite runs on `http://localhost:5173` by default.
 In development, the app uses `/api` as the base path. If I want to point directly to a backend, I can set `VITE_API_BASE_URL`.
 
 ```sh
-VITE_API_BASE_URL=http://localhost:8080 npm run dev
+VITE_API_BASE_URL=http://127.0.0.1:7030/api npm run dev
 ```
 
 ## Scripts

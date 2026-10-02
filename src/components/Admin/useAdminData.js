@@ -1,12 +1,47 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { quoteRequestApi } from '../../api/requests.js';
 import { userApi } from '../../api/users.js';
+import { economicCustomerApi } from '../../api/economicCustomers.js';
 import {
   getRequestUpdatePayload,
   hasPassedEndTime,
   isStatusSix,
   loadProductsForRequest,
 } from './adminUtils.js';
+
+export function useEconomicCustomers(enabled) {
+  const [customers, setCustomers] = useState([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customersError, setCustomersError] = useState('');
+  const initialLoadStarted = useRef(false);
+
+  const loadCustomers = useCallback(async () => {
+    setCustomersLoading(true);
+    setCustomersError('');
+    try {
+      const data = await economicCustomerApi.getAll();
+      setCustomers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setCustomersError(err.message || 'Could not load e-conomic customers.');
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (enabled && !initialLoadStarted.current) {
+      initialLoadStarted.current = true;
+      loadCustomers();
+    }
+  }, [enabled, loadCustomers]);
+
+  return {
+    customers,
+    customersLoading,
+    customersError,
+    loadCustomers,
+  };
+}
 
 export function useAdminUsers() {
   const [users, setUsers] = useState([]);

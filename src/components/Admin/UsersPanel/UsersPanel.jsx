@@ -23,6 +23,9 @@ export function UsersPanel({
   onMakeAdmin,
   onMakeEmployee,
 }) {
+  const isCleaningClientForm = userForm.role === 'CLEANING_CLIENT';
+  const isSubscriberForm = isCleaningClientForm && userForm.cleaningClientType === 'SUBSCRIBER';
+
   return (
         <section className="profile-requests admin-customers">
           <section className="profile-grid admin-grid">
@@ -99,6 +102,30 @@ export function UsersPanel({
                   <option value="CLEANING_STAFF">Cleaning staff</option>
                 </select>
               </div>
+              {isCleaningClientForm && (
+                <div className="field">
+                  <label>Cleaning customer type</label>
+                  <select
+                    value={userForm.cleaningClientType}
+                    onChange={event => onUpdateUserField('cleaningClientType', event.target.value)}
+                  >
+                    <option value="FLEX">Flex</option>
+                    <option value="SUBSCRIBER">Subscriber</option>
+                  </select>
+                </div>
+              )}
+              {isSubscriberForm && (
+                <div className="field">
+                  <label>Visits per month</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={userForm.visitsPerMonth}
+                    onChange={event => onUpdateUserField('visitsPerMonth', event.target.value)}
+                  />
+                </div>
+              )}
               <div className="admin-product-submit">
                 <button className="btn btn-blue" type="submit" disabled={userSaving}>
                   {userSaving ? 'Adding...' : 'Add user'}

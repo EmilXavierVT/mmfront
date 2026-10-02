@@ -10,6 +10,7 @@ export function Icon({ name, size = 20 }) {
     plus: <><path d="M12 5v14M5 12h14"/></>,
     minus: <path d="M5 12h14"/>,
     check: <path d="M5 12l5 5L20 7"/>,
+    edit: <><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4Z"/></>,
     fork: <><path d="M5 3v8a3 3 0 003 3v7"/><path d="M9 3v6"/><path d="M16 3c-1 3-1 6 0 9v9"/></>,
     spray: <><rect x="9" y="9" width="9" height="12" rx="1"/><path d="M9 9V5h6"/><path d="M4 7c2-2 4-2 6 0M4 11c2-2 4-2 6 0"/></>,
     arrow: <><path d="M5 12h14M13 5l7 7-7 7"/></>,

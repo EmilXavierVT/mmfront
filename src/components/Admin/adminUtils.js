@@ -203,6 +203,14 @@ export function isCleaningStaffUser(customer) {
   return hasRole(customer, 'cleaning_staff');
 }
 
+export function isSubscriberUser(customer) {
+  return hasRole(customer, 'subscriber');
+}
+
+export function isFlexUser(customer) {
+  return hasRole(customer, 'flex');
+}
+
 export function getUserKey(customer) {
   return String(getUserId(customer) || getUserEmail(customer)).toLowerCase();
 }
@@ -225,12 +233,14 @@ export function getProductName(item) {
     || item?.product?.name
     || item?.name
     || item?.productName
+    || (item?.productNumber ? `Product ${item.productNumber}` : null)
     || (item?.productId ? `Product #${item.productId}` : 'Product');
 }
 
 export function getProductDescription(item) {
   return item?.productDTO?.description
     || item?.product?.description
+    || item?.productDescription
     || item?.description
     || '';
 }
@@ -319,6 +329,8 @@ export const initialUserForm = {
   firstName: '',
   lastName: '',
   role: 'USER',
+  cleaningClientType: 'FLEX',
+  visitsPerMonth: '4',
 };
 
 export function getProductEditBase(product) {

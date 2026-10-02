@@ -1,206 +1,278 @@
+import { useState } from 'react';
+import { productApi } from '../../../api/products.js';
 import { Icon } from '../../Shared/Icon.jsx';
+
+function formatUpdatedDate(value) {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not available';
+  return new Intl.DateTimeFormat('da-DK', { dateStyle: 'medium' }).format(date);
+}
 
 export function ProductsPanel({
   products,
   filteredProducts,
   productsLoading,
   productsError,
-  productForm,
-  productSaving,
-  productError,
-  productSuccess,
-  productListError,
-  productListSuccess,
   productSearch,
+  productYear,
+  productYears,
+  productMinPrice,
+  productMaxPrice,
+  productSort,
   productTypeOptions,
-  savingProductId,
-  deletingProductId,
-  onCreateProduct,
-  onUpdateProductField,
   onProductsChanged,
   onSearchChange,
-  getProductEdit,
-  onUpdateProductEdit,
-  onSaveProduct,
-  onDeleteProduct,
+  onYearChange,
+  onMinPriceChange,
+  onMaxPriceChange,
+  onSortChange,
+  onClearFilters,
 }) {
+  const typeLabels = Object.fromEntries(productTypeOptions);
+  const [editingProductNumber, setEditingProductNumber] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', description: '', price: '' });
+  const [savingProductNumber, setSavingProductNumber] = useState(null);
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState('');
+
+  const startEditing = (product) => {
+    setEditingProductNumber(product.economicProductNumber || product.id);
+    setEditForm({
+      name: product.name || '',
+      description: product.description || '',
+      price: String(product.price ?? ''),
+    });
+    setEditError('');
+    setEditSuccess('');
+  };
+
+  const cancelEditing = () => {
+    setEditingProductNumber(null);
+    setEditError('');
+  };
+
+  const saveProduct = async (product) => {
+    const productNumber = product.economicProductNumber || product.id;
+    const price = Number(editForm.price);
+    if (!editForm.name.trim()) {
+      setEditError('Product name is required.');
+      return;
+    }
+    if (!Number.isFinite(price) || price < 0) {
+      setEditError('Price must be zero or greater.');
+      return;
+    }
+
+    setSavingProductNumber(productNumber);
+    setEditError('');
+    setEditSuccess('');
+    try {
+      await productApi.update(productNumber, {
+        name: editForm.name.trim(),
+        description: editForm.description.trim(),
+        price,
+      });
+      setEditingProductNumber(null);
+      setEditSuccess(`${editForm.name.trim()} was updated in e-conomic.`);
+      await onProductsChanged();
+    } catch (error) {
+      setEditError(error.message || 'Could not update the e-conomic product.');
+    } finally {
+      setSavingProductNumber(null);
+    }
+  };
+
   return (
-        <section className="profile-requests admin-products">
-          <div className="profile-section-head">
-            <div>
-              <div className="section-eyebrow">Products</div>
-              <h2>Add product</h2>
-            </div>
+    <section className="profile-requests admin-products">
+      <section className="profile-grid admin-grid">
+        <div className="profile-panel">
+          <span>Products</span>
+          <h2>{products.length}</h2>
+          <p>Available products returned by e-conomic.</p>
+        </div>
+        <div className="profile-panel accent">
+          <span>Source</span>
+          <h2>Live</h2>
+          <p>Product details are not stored in PostgreSQL.</p>
+        </div>
+      </section>
+
+      <div className="admin-products-list">
+        <div className="profile-section-head admin-products-list-head">
+          <div>
+            <div className="section-eyebrow">e-conomic</div>
+            <h2>Product inventory</h2>
           </div>
+          <button className="btn btn-blue" type="button" onClick={onProductsChanged} disabled={productsLoading}>
+            Refresh <Icon name="arrow" size={18} />
+          </button>
+        </div>
 
-          <form className="admin-product-form" onSubmit={onCreateProduct}>
-            {productError && <div className="form-error">{productError}</div>}
-            {productSuccess && <div className="form-success">{productSuccess}</div>}
+        {productsLoading && <div className="profile-empty">Loading products from e-conomic...</div>}
+        {productsError && <div className="form-error">{productsError}</div>}
+        {!productsLoading && !productsError && products.length === 0 && (
+          <div className="profile-empty">No products found in e-conomic.</div>
+        )}
 
-            <div className="field-row">
-              <div className="field">
-                <label>Name</label>
-                <input
-                  value={productForm.name}
-                  onChange={event => onUpdateProductField('name', event.target.value)}
-                  placeholder="Seasonal lunch box"
-                />
-              </div>
-              <div className="field">
-                <label>Type</label>
-                <select
-                  value={productForm.type}
-                  onChange={event => onUpdateProductField('type', event.target.value)}
-                >
-                  {productTypeOptions.map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        {editError && <div className="form-error">{editError}</div>}
+        {editSuccess && <div className="form-success">{editSuccess}</div>}
 
-            <div className="field">
-              <label>Description</label>
-              <textarea
-                value={productForm.description}
-                onChange={event => onUpdateProductField('description', event.target.value)}
-                placeholder="Short customer-facing description"
-                rows="4"
+        {products.length > 0 && (
+          <div className="admin-product-filters">
+            <div className="field admin-product-search">
+              <label>Search products</label>
+              <input
+                value={productSearch}
+                onChange={event => onSearchChange(event.target.value)}
+                placeholder="Number, name, group, category"
               />
             </div>
-
-            <div className="field-row compact">
-              <div className="field">
-                <label>Price</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={productForm.price}
-                  onChange={event => onUpdateProductField('price', event.target.value)}
-                  placeholder="125"
-                />
-              </div>
-              <div className="admin-product-submit">
-                <button className="btn btn-blue" type="submit" disabled={productSaving}>
-                  {productSaving ? 'Adding...' : 'Add product'}
-                  <Icon name="plus" size={18} />
-                </button>
-              </div>
+            <div className="field">
+              <label>Product year</label>
+              <select value={productYear} onChange={event => onYearChange(event.target.value)}>
+                <option value="all">All years</option>
+                {productYears.map(year => <option key={year} value={year}>{year}</option>)}
+              </select>
             </div>
-          </form>
-
-          <div className="admin-products-list">
-            <div className="profile-section-head admin-products-list-head">
-              <div>
-                <div className="section-eyebrow">Inventory</div>
-                <h2>All products</h2>
-              </div>
-              <button className="btn btn-blue" type="button" onClick={onProductsChanged} disabled={productsLoading}>
-                Refresh <Icon name="arrow" size={18} />
-              </button>
+            <div className="field">
+              <label>Minimum price</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={productMinPrice}
+                onChange={event => onMinPriceChange(event.target.value)}
+                placeholder="0"
+              />
             </div>
-
-            {productListError && <div className="form-error">{productListError}</div>}
-            {productListSuccess && <div className="form-success">{productListSuccess}</div>}
-            {productsLoading && <div className="profile-empty">Loading products...</div>}
-            {productsError && <div className="form-error">{productsError}</div>}
-            {!productsLoading && !productsError && products.length === 0 && (
-              <div className="profile-empty">No products found.</div>
-            )}
-
-            {products.length > 0 && (
-              <div className="admin-product-search field">
-                <label>Search products</label>
-                <input
-                  value={productSearch}
-                  onChange={event => onSearchChange(event.target.value)}
-                  placeholder="Search by name, type, price, id, or description"
-                />
-              </div>
-            )}
-
-            {!productsLoading && !productsError && products.length > 0 && filteredProducts.length === 0 && (
-              <div className="profile-empty">No products match your search.</div>
-            )}
-
-            {products.length > 0 && (
-              <div className="admin-product-table-wrap">
-                <table className="admin-product-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Price</th>
-                      <th>Description</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProducts.map(product => {
-                      const edit = getProductEdit(product);
-                      const saving = savingProductId === product.id;
-                      const deleting = deletingProductId === product.id;
-
-                      return (
-                        <tr key={product.id}>
-                          <td className="admin-product-id">#{product.id}</td>
-                          <td>
-                            <input
-                              aria-label={`Name for product ${product.id}`}
-                              value={edit.name}
-                              onChange={event => onUpdateProductEdit(product, 'name', event.target.value)}
-                            />
-                          </td>
-                          <td>
-                            <select
-                              aria-label={`Type for product ${product.id}`}
-                              value={edit.type}
-                              onChange={event => onUpdateProductEdit(product, 'type', event.target.value)}
-                            >
-                              {productTypeOptions.map(([value, label]) => (
-                                <option key={value} value={value}>{label}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td>
-                            <input
-                              aria-label={`Price for product ${product.id}`}
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={edit.price}
-                              onChange={event => onUpdateProductEdit(product, 'price', event.target.value)}
-                            />
-                          </td>
-                          <td>
-                            <textarea
-                              aria-label={`Description for product ${product.id}`}
-                              value={edit.description}
-                              onChange={event => onUpdateProductEdit(product, 'description', event.target.value)}
-                              rows="2"
-                            />
-                          </td>
-                          <td>
-                            <div className="admin-product-actions">
-                              <button className="btn btn-blue" type="button" onClick={() => onSaveProduct(product)} disabled={saving || deleting}>
-                                {saving ? 'Saving...' : 'Save'}
-                                <Icon name="check" size={18} />
-                              </button>
-                              <button className="btn btn-cream admin-delete-product-btn" type="button" onClick={() => onDeleteProduct(product)} disabled={saving || deleting}>
-                                {deleting ? 'Deleting...' : 'Delete'}
-                                <Icon name="x" size={18} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <div className="field">
+              <label>Maximum price</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={productMaxPrice}
+                onChange={event => onMaxPriceChange(event.target.value)}
+                placeholder="No maximum"
+              />
+            </div>
+            <div className="field">
+              <label>Sort</label>
+              <select value={productSort} onChange={event => onSortChange(event.target.value)}>
+                <option value="name-asc">Name A-Z</option>
+                <option value="name-desc">Name Z-A</option>
+                <option value="category-asc">Category A-Z</option>
+                <option value="price-asc">Price low-high</option>
+                <option value="price-desc">Price high-low</option>
+                <option value="updated-desc">Recently updated</option>
+              </select>
+            </div>
+            <button
+              className="btn btn-cream admin-clear-product-filters"
+              type="button"
+              onClick={onClearFilters}
+              aria-label="Clear product filters"
+              title="Clear product filters"
+            >
+              <Icon name="x" size={18} />
+            </button>
           </div>
-        </section>  );
+        )}
+
+        {products.length > 0 && (
+          <div className="admin-product-results">{filteredProducts.length} of {products.length} products</div>
+        )}
+
+        {!productsLoading && !productsError && products.length > 0 && filteredProducts.length === 0 && (
+          <div className="profile-empty">No products match your search.</div>
+        )}
+
+        {filteredProducts.length > 0 && (
+          <div className="admin-product-table-wrap">
+            <table className="admin-product-table">
+              <thead>
+                <tr>
+                  <th>Product no.</th>
+                  <th>Name</th>
+                  <th>Group</th>
+                  <th>Website category</th>
+                  <th>Price</th>
+                  <th>Updated</th>
+                  <th>Description</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map(product => {
+                  const productNumber = product.economicProductNumber || product.id;
+                  const editing = editingProductNumber === productNumber;
+                  const saving = savingProductNumber === productNumber;
+                  return (
+                    <tr key={productNumber}>
+                      <td className="admin-product-id">{productNumber}</td>
+                      <td>
+                        {editing ? (
+                          <input
+                            aria-label={`Name for product ${productNumber}`}
+                            value={editForm.name}
+                            maxLength="300"
+                            onChange={event => setEditForm(current => ({ ...current, name: event.target.value }))}
+                          />
+                        ) : <strong>{product.name}</strong>}
+                      </td>
+                      <td>{product.economicProductGroupName || product.economicProductGroupNumber || 'None'}</td>
+                      <td>{typeLabels[String(product.type)] || `Type ${product.type}`}</td>
+                      <td>
+                        {editing ? (
+                          <input
+                            aria-label={`Price for product ${productNumber}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editForm.price}
+                            onChange={event => setEditForm(current => ({ ...current, price: event.target.value }))}
+                          />
+                        ) : `${Number(product.price || 0).toLocaleString('da-DK')} kr`}
+                      </td>
+                      <td>{formatUpdatedDate(product.economicLastUpdated)}</td>
+                      <td>
+                        {editing ? (
+                          <textarea
+                            aria-label={`Description for product ${productNumber}`}
+                            value={editForm.description}
+                            maxLength="500"
+                            rows="2"
+                            onChange={event => setEditForm(current => ({ ...current, description: event.target.value }))}
+                          />
+                        ) : product.description || 'None'}
+                      </td>
+                      <td>
+                        <div className="admin-product-actions">
+                          {editing ? (
+                            <>
+                              <button className="btn btn-blue" type="button" disabled={saving} onClick={() => saveProduct(product)}>
+                                {saving ? 'Saving...' : 'Save'} <Icon name="check" size={16} />
+                              </button>
+                              <button className="btn btn-cream" type="button" disabled={saving} onClick={cancelEditing}>
+                                Cancel <Icon name="x" size={16} />
+                              </button>
+                            </>
+                          ) : (
+                            <button className="btn btn-cream" type="button" onClick={() => startEditing(product)}>
+                              Edit <Icon name="edit" size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }

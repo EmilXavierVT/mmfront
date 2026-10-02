@@ -151,7 +151,11 @@ export function Employee({ user, onLogout, onUserUpdated }) {
       return;
     }
 
-    setActiveTab(employeeTabs[0][0]);
+    const timeout = window.setTimeout(() => {
+      setActiveTab(employeeTabs[0][0]);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [activeTab, employeeTabs]);
 
   useEffect(() => {
