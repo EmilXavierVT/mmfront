@@ -18,6 +18,7 @@ import {
 } from '../Admin/adminUtils.js';
 
 const DURATION_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
+const DEFAULT_TASKS = ['Kitchen surfaces', 'Bathroom reset', 'Floors', 'Final walkthrough'];
 
 function pad(part) {
   return String(part).padStart(2, '0');
@@ -48,9 +49,11 @@ function buildInitialForm(cleaningClients, dateKey = '') {
   return {
     id: null,
     cleaningClientId: cleaningClients[0]?.id ? String(cleaningClients[0].id) : '',
+    projectName: cleaningClients[0]?.id ? `${getClientName(cleaningClients[0])} cleaning project` : '',
     appointmentTime: `${dateKey || getDateKey(new Date())}T09:00`,
     durationMinutes: '120',
     vacation: false,
+    taskText: DEFAULT_TASKS.join('\n'),
     repeatWeekly: false,
     recurrenceIntervalWeeks: '1',
     recurrenceWeeks: '1',
@@ -86,6 +89,11 @@ function getClientName(client) {
   return name || client?.email || 'Unknown cleaning client';
 }
 
+function getStaffName(staff) {
+  const name = [staff?.firstName, staff?.lastName].filter(Boolean).join(' ');
+  return name || staff?.email || 'Unassigned';
+}
+
 function buildCleaningClientSummaries(users) {
   return users
     .filter(isCleaningClientUser)
@@ -99,6 +107,25 @@ function buildCleaningClientSummaries(users) {
     }))
     .filter((user) => user.id)
     .sort((a, b) => getClientName(a).localeCompare(getClientName(b)));
+}
+
+function buildCleaningStaffSummaries(users) {
+  return users
+    .filter((user) => {
+      const roles = Array.isArray(user?.roles) ? user.roles : [user?.role];
+      return roles
+        .flatMap((role) => String(role || '').split(','))
+        .map((role) => role.trim().replace(/^ROLE_/i, '').toUpperCase())
+        .includes('CLEANING_STAFF');
+    })
+    .map((user) => ({
+      id: getUserId(user),
+      email: getUserEmail(user),
+      firstName: getUserFirstName(user),
+      lastName: getUserLastName(user),
+    }))
+    .filter((user) => user.id)
+    .sort((a, b) => getStaffName(a).localeCompare(getStaffName(b)));
 }
 
 function buildRecurringTimes(appointmentTime, recurrenceWeeks, recurrenceIntervalWeeks = 1) {
@@ -135,10 +162,45 @@ function normalizeAppointment(appointment) {
     id: parseOptionalId(appointment?.id),
     cleaningClientId: parseOptionalId(appointment?.cleaningClientId),
     cleaningStaffId: parseOptionalId(appointment?.cleaningStaffId),
+    projectId: parseOptionalId(appointment?.projectId),
+    projectName: appointment?.projectName || '',
     durationMinutes: Number(appointment?.durationMinutes) || 0,
     cancellationTime: appointment?.cancellationTime || null,
     vacation: Boolean(appointment?.vacation),
+    tasks: normalizeTasks(appointment?.tasks),
   };
+}
+
+function normalizeTasks(tasks) {
+  if (!Array.isArray(tasks)) return [];
+
+  return tasks
+    .filter((task) => task?.title)
+    .map((task, index) => ({
+      id: parseOptionalId(task.id),
+      title: String(task.title).trim(),
+      completed: Boolean(task.completed),
+      sortOrder: Number(task.sortOrder) || index + 1,
+    }))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+function buildTasksFromText(taskText, existingTasks = []) {
+  const existingByTitle = Object.fromEntries(existingTasks.map((task) => [task.title.toLowerCase(), task]));
+
+  return String(taskText || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((title, index) => {
+      const existing = existingByTitle[title.toLowerCase()];
+      return {
+        id: existing?.id || null,
+        title,
+        completed: Boolean(existing?.completed),
+        sortOrder: index + 1,
+      };
+    });
 }
 
 function getMonthKey(value) {
@@ -221,10 +283,6 @@ function getSubscriberVisitStatus(client, subscriptionDeal, visitCount, subscrip
     : `${visitCount}/${visitsPerMonth} visits this month`;
 }
 
-function isVisibleToCleaningStaff(appointment, cleaningStaffId) {
-  return appointment?.cleaningStaffId == null || appointment.cleaningStaffId === cleaningStaffId;
-}
-
 export function CleaningSchedulePanel({ user }) {
   const cleaningStaffId = Number(user?.id || user?.userId);
   const [appointments, setAppointments] = useState([]);
@@ -247,6 +305,11 @@ export function CleaningSchedulePanel({ user }) {
   const cleaningClientsById = useMemo(
     () => Object.fromEntries(cleaningClients.map((client) => [String(client.id), client])),
     [cleaningClients],
+  );
+  const cleaningStaff = useMemo(() => buildCleaningStaffSummaries(users), [users]);
+  const cleaningStaffById = useMemo(
+    () => Object.fromEntries(cleaningStaff.map((staff) => [String(staff.id), staff])),
+    [cleaningStaff],
   );
   const subscriptionDealsByUserId = useMemo(
     () => Object.fromEntries(subscriptionDeals
@@ -276,6 +339,9 @@ export function CleaningSchedulePanel({ user }) {
     () => sortedAppointments.find((appointment) => appointment.id === selectedAppointmentId) || null,
     [selectedAppointmentId, sortedAppointments],
   );
+  const selectedAppointmentCanBeEdited = !selectedAppointment
+    || selectedAppointment.cleaningStaffId == null
+    || selectedAppointment.cleaningStaffId === cleaningStaffId;
   const selectedDayAppointments = appointmentsByDay[selectedDateKey] || [];
   const unassignedAppointments = useMemo(
     () => sortedAppointments.filter((appointment) => appointment.cleaningStaffId == null),
@@ -330,14 +396,10 @@ export function CleaningSchedulePanel({ user }) {
         const nextUsers = normalizeListResponse(userData);
         const nextAppointmentData = normalizeListResponse(appointmentData);
         const nextSubscriptionDeals = subscriptionDealResult.items;
-        const nextAppointments = nextAppointmentData.length
-          ? nextAppointmentData
-            .map(normalizeAppointment)
-            .filter((appointment) => isVisibleToCleaningStaff(appointment, cleaningStaffId))
-          : [];
+        const nextAppointments = nextAppointmentData.map(normalizeAppointment);
 
         setUsers(nextUsers);
-        setAllAppointments(nextAppointmentData.map(normalizeAppointment));
+        setAllAppointments(nextAppointments);
         setAppointments(nextAppointments);
         setSubscriptionDeals(nextSubscriptionDeals);
         setSubscriptionDealsLoaded(true);
@@ -395,6 +457,7 @@ export function CleaningSchedulePanel({ user }) {
         return {
           ...current,
           cleaningClientId: String(cleaningClients[0].id),
+          projectName: current.projectName || `${getClientName(cleaningClients[0])} cleaning project`,
         };
       });
     }, 0);
@@ -416,9 +479,14 @@ export function CleaningSchedulePanel({ user }) {
     setAppointmentForm({
       id: appointment.id,
       cleaningClientId: appointment.cleaningClientId ? String(appointment.cleaningClientId) : '',
+      projectId: appointment.projectId || null,
+      projectName: appointment.projectName || `${getClientName(cleaningClientsById[String(appointment.cleaningClientId)])} cleaning project`,
       appointmentTime: toInputDateTime(appointment.appointmentTime),
       durationMinutes: String(appointment.durationMinutes || 120),
       vacation: Boolean(appointment.vacation),
+      taskText: (appointment.tasks?.length ? appointment.tasks : DEFAULT_TASKS.map((title, index) => ({ title, sortOrder: index + 1 })))
+        .map((task) => task.title)
+        .join('\n'),
       repeatWeekly: false,
       recurrenceIntervalWeeks: '1',
       recurrenceWeeks: '1',
@@ -438,12 +506,8 @@ export function CleaningSchedulePanel({ user }) {
       ]);
       const nextAppointmentData = normalizeListResponse(appointmentData);
       const nextSubscriptionDeals = subscriptionDealResult.items;
-      const nextAppointments = nextAppointmentData.length
-        ? nextAppointmentData
-          .map(normalizeAppointment)
-          .filter((appointment) => isVisibleToCleaningStaff(appointment, cleaningStaffId))
-        : [];
-      setAllAppointments(nextAppointmentData.map(normalizeAppointment));
+      const nextAppointments = nextAppointmentData.map(normalizeAppointment);
+      setAllAppointments(nextAppointments);
       setAppointments(nextAppointments);
       setSubscriptionDeals(nextSubscriptionDeals.length ? nextSubscriptionDeals : subscriptionDeals);
       setSubscriptionDealsLoaded(true);
@@ -474,6 +538,10 @@ export function CleaningSchedulePanel({ user }) {
 
     if (!appointmentForm.appointmentTime) {
       return 'Add an appointment time.';
+    }
+
+    if (!String(appointmentForm.taskText || '').trim()) {
+      return 'Add at least one task for the assignment.';
     }
 
     const appointmentDate = new Date(appointmentForm.appointmentTime);
@@ -526,13 +594,20 @@ export function CleaningSchedulePanel({ user }) {
 
       const payloads = appointmentTimes.map((appointmentTime) => ({
         cleaningClientId: Number(appointmentForm.cleaningClientId),
+        projectId: appointmentForm.projectId || null,
+        projectName: appointmentForm.projectName || `${getClientName(cleaningClientsById[String(appointmentForm.cleaningClientId)])} cleaning project`,
         cleaningStaffId,
         appointmentTime: toApiDateTime(appointmentTime),
         durationMinutes: Number(appointmentForm.durationMinutes),
         vacation: Boolean(appointmentForm.vacation),
+        tasks: buildTasksFromText(appointmentForm.taskText, selectedAppointment?.tasks),
       }));
 
       if (appointmentForm.id) {
+        if (selectedAppointment?.cleaningStaffId && selectedAppointment.cleaningStaffId !== cleaningStaffId) {
+          throw new Error('This assignment belongs to another cleaning employee.');
+        }
+
         await cleaningAppointmentApi.update(appointmentForm.id, {
           id: appointmentForm.id,
           ...payloads[0],
@@ -615,15 +690,58 @@ export function CleaningSchedulePanel({ user }) {
       await cleaningAppointmentApi.update(selectedAppointment.id, {
         id: selectedAppointment.id,
         cleaningClientId: selectedAppointment.cleaningClientId,
+        projectId: selectedAppointment.projectId || null,
+        projectName: selectedAppointment.projectName || '',
         cleaningStaffId,
         appointmentTime: selectedAppointment.appointmentTime,
         durationMinutes: selectedAppointment.durationMinutes,
         vacation: selectedAppointment.vacation,
+        tasks: selectedAppointment.tasks || [],
       });
       await refreshSchedule('Appointment assigned to you.');
       setSelectedAppointmentId(selectedAppointment.id);
     } catch (err) {
       setScheduleError(err.message || 'Could not assign the appointment to you.');
+    } finally {
+      setSavingAction('');
+    }
+  }
+
+  async function handleToggleTask(taskIndex, completed) {
+    if (!selectedAppointment?.id || savingAction) return;
+    if (selectedAppointment.cleaningStaffId && selectedAppointment.cleaningStaffId !== cleaningStaffId) {
+      setScheduleError('This assignment belongs to another cleaning employee.');
+      setScheduleSuccess('');
+      return;
+    }
+
+    const nextTasks = (selectedAppointment.tasks?.length ? selectedAppointment.tasks : buildTasksFromText(DEFAULT_TASKS.join('\n')))
+      .map((task, index) => (
+        index === taskIndex
+          ? { ...task, completed }
+          : task
+      ));
+
+    setSavingAction('task');
+    setScheduleError('');
+    setScheduleSuccess('');
+
+    try {
+      await cleaningAppointmentApi.update(selectedAppointment.id, {
+        id: selectedAppointment.id,
+        cleaningClientId: selectedAppointment.cleaningClientId,
+        projectId: selectedAppointment.projectId || null,
+        projectName: selectedAppointment.projectName || '',
+        cleaningStaffId: selectedAppointment.cleaningStaffId || cleaningStaffId,
+        appointmentTime: selectedAppointment.appointmentTime,
+        durationMinutes: selectedAppointment.durationMinutes,
+        vacation: selectedAppointment.vacation,
+        tasks: nextTasks,
+      });
+      await refreshSchedule('Task updated.');
+      setSelectedAppointmentId(selectedAppointment.id);
+    } catch (err) {
+      setScheduleError(err.message || 'Could not update the task.');
     } finally {
       setSavingAction('');
     }
@@ -635,7 +753,7 @@ export function CleaningSchedulePanel({ user }) {
         <div className="profile-panel">
           <span>Appointments</span>
           <h2>{sortedAppointments.length}</h2>
-          <p>Cleaning appointments assigned to you and waiting to be claimed.</p>
+          <p>All cleaning assignments across the team calendar.</p>
         </div>
 
         <div className="profile-panel accent">
@@ -647,7 +765,7 @@ export function CleaningSchedulePanel({ user }) {
         <div className="profile-panel accent">
           <span>Clients</span>
           <h2>{cleaningClients.length}</h2>
-          <p>Cleaning clients available for scheduling.</p>
+          <p>Cleaning customers available for project assignments.</p>
         </div>
       </section>
       <br />
@@ -708,11 +826,11 @@ export function CleaningSchedulePanel({ user }) {
             <div className="employee-cleaning-form-head">
               <div>
                 <span>{appointmentForm.id ? 'Edit appointment' : 'New appointment'}</span>
-                <h3>{appointmentForm.id ? `Appointment #${appointmentForm.id}` : 'Add cleaning visit'}</h3>
+                <h3>{appointmentForm.id ? `Assignment #${appointmentForm.id}` : 'Add cleaning assignment'}</h3>
                 <p>
                   {appointmentForm.id
-                    ? 'Update the selected appointment or delete it if it should be removed.'
-                    : 'Create one visit or repeat the same visit weekly or bi-weekly for a chosen number of weeks.'}
+                    ? 'Update your own or unassigned work. Assignments owned by another employee are shown read-only.'
+                    : 'Create one assignment or repeat the same assignment weekly or bi-weekly for a chosen number of weeks.'}
                 </p>
               </div>
               {appointmentForm.id && (
@@ -724,10 +842,15 @@ export function CleaningSchedulePanel({ user }) {
 
             <div className="field-row">
               <div className="field">
-                <label>Cleaning client</label>
+                <label>Cleaning customer</label>
                 <select
                   value={appointmentForm.cleaningClientId}
-                  onChange={(event) => updateAppointmentField('cleaningClientId', event.target.value)}
+                  onChange={(event) => {
+                    const nextClientId = event.target.value;
+                    const nextClient = cleaningClientsById[String(nextClientId)];
+                    updateAppointmentField('cleaningClientId', nextClientId);
+                    updateAppointmentField('projectName', nextClient ? `${getClientName(nextClient)} cleaning project` : '');
+                  }}
                   disabled={!cleaningClients.length}
                 >
                   {!cleaningClients.length && <option value="">No cleaning clients available</option>}
@@ -745,6 +868,26 @@ export function CleaningSchedulePanel({ user }) {
                   type="datetime-local"
                   value={appointmentForm.appointmentTime}
                   onChange={(event) => updateAppointmentField('appointmentTime', event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="field-row">
+              <div className="field">
+                <label>Project</label>
+                <input
+                  value={appointmentForm.projectName}
+                  onChange={(event) => updateAppointmentField('projectName', event.target.value)}
+                  placeholder="Customer cleaning project"
+                />
+              </div>
+              <div className="field">
+                <label>Tasks</label>
+                <textarea
+                  value={appointmentForm.taskText}
+                  onChange={(event) => updateAppointmentField('taskText', event.target.value)}
+                  placeholder="One task per line"
+                  rows={4}
                 />
               </div>
             </div>
@@ -812,18 +955,27 @@ export function CleaningSchedulePanel({ user }) {
             )}
 
             <div className="employee-actions">
-              <button className="btn btn-blue" type="submit" disabled={savingAction === 'create' || savingAction === 'update' || !cleaningClients.length}>
+              <button
+                className="btn btn-blue"
+                type="submit"
+                disabled={
+                  savingAction === 'create'
+                  || savingAction === 'update'
+                  || !cleaningClients.length
+                  || (appointmentForm.id && !selectedAppointmentCanBeEdited)
+                }
+              >
                 {savingAction === 'create' || savingAction === 'update'
                   ? 'Saving...'
                   : appointmentForm.id
                     ? 'Save changes'
-                    : 'Create appointment'}
+                    : 'Create assignment'}
                 <Icon name={appointmentForm.id ? 'arrow' : 'plus'} size={18} />
               </button>
 
-              {appointmentForm.id && (
+              {appointmentForm.id && selectedAppointmentCanBeEdited && (
                 <button className="btn btn-ghost" type="button" onClick={handleDeleteAppointment} disabled={savingAction === 'delete'}>
-                  {savingAction === 'delete' ? 'Deleting...' : 'Delete appointment'}
+                  {savingAction === 'delete' ? 'Deleting...' : 'Delete assignment'}
                   <Icon name="x" size={18} />
                 </button>
               )}
@@ -904,7 +1056,13 @@ export function CleaningSchedulePanel({ user }) {
                               }}
                             >
                               <strong>{formatTimeOnly(appointment.appointmentTime)}</strong>
-                              <small>{getClientName(client)} · {getClientVisitStatus(client)}</small>
+                              <small>
+                                {appointment.projectName || getClientName(client)}
+                                {' · '}
+                                {appointment.cleaningStaffId
+                                  ? getStaffName(cleaningStaffById[String(appointment.cleaningStaffId)])
+                                  : 'Unassigned'}
+                              </small>
                             </button>
                           );
                         })}
@@ -923,7 +1081,7 @@ export function CleaningSchedulePanel({ user }) {
                 </div>
                 <div className="employee-status-pill">
                   {selectedAppointment
-                    ? (selectedAppointment.vacation ? 'Vacation' : 'Scheduled')
+                    ? (selectedAppointment.vacation ? 'Vacation' : selectedAppointment.projectName || 'Scheduled')
                     : `${selectedDayAppointments.length} visit${selectedDayAppointments.length === 1 ? '' : 's'}`}
                 </div>
               </div>
@@ -936,7 +1094,11 @@ export function CleaningSchedulePanel({ user }) {
                       <dd>#{selectedAppointment.id || 'New'}</dd>
                     </div>
                     <div>
-                      <dt>Client</dt>
+                      <dt>Project</dt>
+                      <dd>{selectedAppointment.projectName || 'Cleaning project'}</dd>
+                    </div>
+                    <div>
+                      <dt>Customer</dt>
                       <dd>{getClientName(cleaningClientsById[String(selectedAppointment.cleaningClientId)])}</dd>
                     </div>
                     <div>
@@ -961,9 +1123,30 @@ export function CleaningSchedulePanel({ user }) {
                     </div>
                     <div>
                       <dt>Assigned staff</dt>
-                      <dd>{selectedAppointment.cleaningStaffId ? 'You' : 'Unassigned'}</dd>
+                      <dd>
+                        {selectedAppointment.cleaningStaffId
+                          ? getStaffName(cleaningStaffById[String(selectedAppointment.cleaningStaffId)])
+                          : 'Unassigned'}
+                      </dd>
                     </div>
                   </dl>
+
+                  <div className="employee-cleaning-day-section">
+                    <div className="employee-cleaning-day-head">
+                      <h4>Tasks</h4>
+                    </div>
+                    {(selectedAppointment.tasks?.length ? selectedAppointment.tasks : buildTasksFromText(DEFAULT_TASKS.join('\n'))).map((task, index) => (
+                      <label className="employee-cleaning-checkbox employee-cleaning-task" key={task.id || `${task.title}-${index}`}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(task.completed)}
+                          disabled={!selectedAppointmentCanBeEdited || savingAction === 'task'}
+                          onChange={(event) => handleToggleTask(index, event.target.checked)}
+                        />
+                        <span>{task.title}</span>
+                      </label>
+                    ))}
+                  </div>
 
                   {!selectedAppointment.cleaningStaffId && (
                     <div className="employee-actions">
@@ -1012,7 +1195,14 @@ export function CleaningSchedulePanel({ user }) {
                         >
                           <span>{appointment.cleaningStaffId ? (appointment.vacation ? 'Vacation visit' : 'Cleaning visit') : 'Unassigned visit'}</span>
                           <strong>{formatTimeOnly(appointment.appointmentTime)} · {formatDuration(appointment.durationMinutes)}</strong>
-                          <small>{getClientName(client)}{client?.email ? ` · ${client.email}` : ''} · {getClientVisitStatus(client)}</small>
+                          <small>
+                            {appointment.projectName || getClientName(client)}
+                            {client?.email ? ` · ${client.email}` : ''}
+                            {' · '}
+                            {appointment.cleaningStaffId
+                              ? getStaffName(cleaningStaffById[String(appointment.cleaningStaffId)])
+                              : 'Unassigned'}
+                          </small>
                         </button>
                       );
                     })}
