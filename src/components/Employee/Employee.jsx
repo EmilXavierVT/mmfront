@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { cleaningAppointmentApi } from '../../api/cleaningAppointments.js';
+import { economicCustomerApi } from '../../api/economicCustomers.js';
 import { workLogApi } from '../../api/worklogs.js';
 import { ChangePasswordPanel } from '../Auth/ChangePasswordPanel.jsx';
 import { AccountDetailsPanel } from '../Profile/AccountDetailsPanel.jsx';
@@ -6,6 +8,8 @@ import { CleaningSchedulePanel } from './CleaningSchedulePanel.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 
 const ACTIVE_WORKLOG_STORAGE_KEY = 'mm_active_worklog_id';
+const CLEANING_CUSTOMER_GROUP_NUMBER = 5;
+const DURATION_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
 
 function pad(part) {
   return String(part).padStart(2, '0');
@@ -14,6 +18,11 @@ function pad(part) {
 function getNowInputValue() {
   const now = new Date();
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function getTodayDateValue() {
+  const now = new Date();
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 function toInputDateTime(value) {
@@ -37,6 +46,21 @@ function toApiDateTime(value) {
   return value.length === 16 ? `${value}:00` : value;
 }
 
+function getDateKey(value) {
+  if (!value) return '';
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function toAssignmentDateTime(dateValue) {
+  if (!dateValue) return null;
+
+  return `${dateValue}T09:00:00`;
+}
+
 function addSeconds(value, seconds) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -58,6 +82,28 @@ function formatDateTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatTimeOnly(value) {
+  if (!value) return 'Not set';
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleTimeString('da-DK', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatDuration(minutes) {
+  const value = Number(minutes);
+  if (!Number.isFinite(value) || value <= 0) return 'Duration not set';
+
+  const hours = Math.floor(value / 60);
+  const rest = value % 60;
+  const hourLabel = rest ? (value / 60).toFixed(1) : String(hours);
+  return `${hourLabel} h`;
 }
 
 function compareDateTimesDescending(a, b) {
@@ -98,6 +144,51 @@ function validateWorkLogTimes(startValue, endValue) {
   return '';
 }
 
+function normalizeListResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.content)) return data.content;
+  if (data && typeof data === 'object') {
+    const nestedList = Object.values(data).find(Array.isArray);
+    if (nestedList) return nestedList;
+    if (data.id != null) return [data];
+  }
+  return [];
+}
+
+function getCustomerGroupName(customer) {
+  return customer?.customerGroup?.name || customer?.customerGroupName || '';
+}
+
+function getCustomerGroupNumber(customer) {
+  return customer?.customerGroup?.customerGroupNumber ?? customer?.customerGroupNumber ?? null;
+}
+
+function isCleaningEconomicCustomer(customer) {
+  const groupName = getCustomerGroupName(customer)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  const groupNumber = Number(getCustomerGroupNumber(customer));
+
+  return groupNumber === CLEANING_CUSTOMER_GROUP_NUMBER
+    || groupName.includes('cleaning')
+    || groupName.includes('rengoring')
+    || groupName.includes('rengoering');
+}
+
+function getCleaningCustomerName(customer) {
+  return customer?.name || 'Unknown cleaning customer';
+}
+
+function getAppointmentCustomerName(appointment) {
+  return appointment?.economicCustomerName
+    || appointment?.cleaningClientName
+    || appointment?.projectName
+    || 'Cleaning customer';
+}
+
 export function Employee({ user, onLogout, onUserUpdated }) {
   const isCleaningStaff = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
     .flatMap(value => String(value || '').split(','))
@@ -114,6 +205,13 @@ export function Employee({ user, onLogout, onUserUpdated }) {
   const [selectedHistoryLogId, setSelectedHistoryLogId] = useState(null);
   const [historyStartInput, setHistoryStartInput] = useState('');
   const [historyEndInput, setHistoryEndInput] = useState('');
+  const [assignmentCustomers, setAssignmentCustomers] = useState([]);
+  const [assignmentCustomerNumber, setAssignmentCustomerNumber] = useState('');
+  const [assignmentDate, setAssignmentDate] = useState(getTodayDateValue());
+  const [assignmentDurationMinutes, setAssignmentDurationMinutes] = useState('120');
+  const [cleaningAppointments, setCleaningAppointments] = useState([]);
+  const [cleaningAppointmentsLoading, setCleaningAppointmentsLoading] = useState(false);
+  const [selectedTodayAppointmentId, setSelectedTodayAppointmentId] = useState(null);
   const [activeWorkLogId, setActiveWorkLogId] = useState(() => {
     const stored = localStorage.getItem(ACTIVE_WORKLOG_STORAGE_KEY);
     return stored ? Number(stored) : null;
@@ -144,6 +242,26 @@ export function Employee({ user, onLogout, onUserUpdated }) {
   const selectedHistoryLog = useMemo(
     () => completedWorkLogs.find(workLog => workLog.id === selectedHistoryLogId) || completedWorkLogs[0] || null,
     [completedWorkLogs, selectedHistoryLogId],
+  );
+  const assignmentCustomersByNumber = useMemo(
+    () => Object.fromEntries(assignmentCustomers.map((customer) => [String(customer.customerNumber), customer])),
+    [assignmentCustomers],
+  );
+  const todayCleaningAppointments = useMemo(() => {
+    if (!isCleaningStaff || !userId) return [];
+
+    return cleaningAppointments
+      .filter((appointment) => (
+        String(appointment?.cleaningStaffId || '') === String(userId)
+        && getDateKey(appointment?.appointmentTime) === getTodayDateValue()
+        && !appointment?.cancellationTime
+        && !appointment?.vacation
+      ))
+      .sort((a, b) => new Date(a.appointmentTime || 0) - new Date(b.appointmentTime || 0));
+  }, [cleaningAppointments, isCleaningStaff, userId]);
+  const selectedTodayAppointment = useMemo(
+    () => todayCleaningAppointments.find((appointment) => String(appointment.id) === String(selectedTodayAppointmentId)) || todayCleaningAppointments[0] || null,
+    [selectedTodayAppointmentId, todayCleaningAppointments],
   );
 
   useEffect(() => {
@@ -193,6 +311,68 @@ export function Employee({ user, onLogout, onUserUpdated }) {
   }, [userId]);
 
   useEffect(() => {
+    if (!isCleaningStaff) return;
+
+    let ignore = false;
+
+    async function loadCleaningCustomers() {
+      try {
+        const data = await economicCustomerApi.getAll();
+        if (ignore) return;
+
+        const nextCustomers = normalizeListResponse(data)
+          .filter(isCleaningEconomicCustomer)
+          .filter((customer) => customer?.customerNumber)
+          .sort((a, b) => getCleaningCustomerName(a).localeCompare(getCleaningCustomerName(b), 'da'));
+
+        setAssignmentCustomers(nextCustomers);
+        setAssignmentCustomerNumber((current) => current || String(nextCustomers[0]?.customerNumber || ''));
+      } catch (err) {
+        if (!ignore) {
+          setWorkLogsError(err.message || 'Could not load cleaning customers.');
+        }
+      }
+    }
+
+    loadCleaningCustomers();
+
+    return () => {
+      ignore = true;
+    };
+  }, [isCleaningStaff]);
+
+  useEffect(() => {
+    if (!isCleaningStaff || !userId) return;
+
+    let ignore = false;
+
+    async function loadCleaningAppointments() {
+      setCleaningAppointmentsLoading(true);
+
+      try {
+        const data = await cleaningAppointmentApi.getAll();
+        if (!ignore) {
+          setCleaningAppointments(normalizeListResponse(data));
+        }
+      } catch (err) {
+        if (!ignore) {
+          setWorkLogsError(err.message || 'Could not load your cleaning appointments.');
+        }
+      } finally {
+        if (!ignore) {
+          setCleaningAppointmentsLoading(false);
+        }
+      }
+    }
+
+    loadCleaningAppointments();
+
+    return () => {
+      ignore = true;
+    };
+  }, [isCleaningStaff, userId]);
+
+  useEffect(() => {
     if (activeWorkLogId && !sortedWorkLogs.some(workLog => workLog.id === activeWorkLogId)) {
       Promise.resolve().then(() => {
         setActiveWorkLogId(null);
@@ -240,6 +420,21 @@ export function Employee({ user, onLogout, onUserUpdated }) {
     });
   }, [selectedHistoryLog]);
 
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      if (!todayCleaningAppointments.length) {
+        setSelectedTodayAppointmentId(null);
+        return;
+      }
+
+      setSelectedTodayAppointmentId((current) => (
+        todayCleaningAppointments.some((appointment) => String(appointment.id) === String(current))
+          ? current
+          : todayCleaningAppointments[0].id
+      ));
+    });
+  }, [todayCleaningAppointments]);
+
   async function refreshWorkLogs(successMessage = '') {
     if (!userId) return;
 
@@ -258,6 +453,29 @@ export function Employee({ user, onLogout, onUserUpdated }) {
     } finally {
       setWorkLogsLoading(false);
     }
+  }
+
+  async function refreshCleaningAppointments() {
+    if (!isCleaningStaff || !userId) return [];
+
+    setCleaningAppointmentsLoading(true);
+
+    try {
+      const data = await cleaningAppointmentApi.getAll();
+      const nextAppointments = normalizeListResponse(data);
+      setCleaningAppointments(nextAppointments);
+      return nextAppointments;
+    } catch (err) {
+      setWorkLogsError(err.message || 'Could not load your cleaning appointments.');
+      return [];
+    } finally {
+      setCleaningAppointmentsLoading(false);
+    }
+  }
+
+  function refreshCurrentShift() {
+    refreshWorkLogs();
+    refreshCleaningAppointments();
   }
 
   async function createWorkLog(payload, successMessage, actionName) {
@@ -321,6 +539,12 @@ export function Employee({ user, onLogout, onUserUpdated }) {
   }
 
   function handleCheckInNow() {
+    if (isCleaningStaff && !selectedTodayAppointment) {
+      setWorkLogsError('Create or choose an assignment for today before checking in.');
+      setWorkLogsSuccess('');
+      return;
+    }
+
     const startTime = getNowInputValue();
 
     createWorkLog({
@@ -347,6 +571,83 @@ export function Employee({ user, onLogout, onUserUpdated }) {
       endTime: toApiDateTime(endTime),
       userId,
     }, 'Checked out.', 'check-out-now');
+  }
+
+  async function handleCreateCleaningAssignment(event) {
+    event.preventDefault();
+
+    if (!userId) {
+      setWorkLogsError('Your user id is missing from the session.');
+      setWorkLogsSuccess('');
+      return;
+    }
+
+    if (!assignmentCustomerNumber) {
+      setWorkLogsError('Choose a cleaning customer.');
+      setWorkLogsSuccess('');
+      return;
+    }
+
+    if (!assignmentDate) {
+      setWorkLogsError('Choose an assignment date.');
+      setWorkLogsSuccess('');
+      return;
+    }
+
+    const durationMinutes = Number(assignmentDurationMinutes);
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0 || durationMinutes % 30 !== 0) {
+      setWorkLogsError('Add a valid assignment duration in half-hour increments.');
+      setWorkLogsSuccess('');
+      return;
+    }
+
+    const customer = assignmentCustomersByNumber[String(assignmentCustomerNumber)];
+    if (!customer) {
+      setWorkLogsError('The selected cleaning customer is not available.');
+      setWorkLogsSuccess('');
+      return;
+    }
+
+    setSavingAction('create-assignment');
+    setWorkLogsError('');
+    setWorkLogsSuccess('');
+
+    try {
+      const createdAppointment = await cleaningAppointmentApi.create({
+        economicCustomerNumber: Number(assignmentCustomerNumber),
+        economicCustomerName: getCleaningCustomerName(customer),
+        projectName: `${getCleaningCustomerName(customer)} cleaning project`,
+        cleaningStaffId: Number(userId),
+        appointmentTime: toAssignmentDateTime(assignmentDate),
+        durationMinutes,
+        vacation: false,
+        tasks: [],
+      });
+
+      const nextAppointments = await refreshCleaningAppointments();
+      const createdId = Number(createdAppointment?.id);
+      if (
+        Number.isFinite(createdId)
+        && nextAppointments.some((appointment) => (
+          String(appointment.id) === String(createdId)
+          && String(appointment.cleaningStaffId || '') === String(userId)
+          && getDateKey(appointment.appointmentTime) === getTodayDateValue()
+        ))
+      ) {
+        setSelectedTodayAppointmentId(createdId);
+      }
+      await refreshWorkLogs('');
+
+      setWorkLogsSuccess(
+        assignmentDate === getTodayDateValue()
+          ? 'Assignment created. You can check in now.'
+          : 'Assignment created. You can check in when the assignment is for today.',
+      );
+    } catch (err) {
+      setWorkLogsError(err.message || 'Could not create the cleaning assignment.');
+    } finally {
+      setSavingAction('');
+    }
   }
 
   function handleSaveHistoryLog() {
@@ -400,9 +701,9 @@ export function Employee({ user, onLogout, onUserUpdated }) {
           <div className="profile-section-head">
             <div>
               <div className="section-eyebrow">Shift</div>
-              <h2>{activeWorkLog ? 'Manage current shift' : 'Check in or add missed time'}</h2>
+              <h2>{activeWorkLog ? 'Manage current shift' : 'Check in for today'}</h2>
             </div>
-            <button className="btn btn-blue" type="button" onClick={() => refreshWorkLogs()} disabled={workLogsLoading}>
+            <button className="btn btn-blue" type="button" onClick={refreshCurrentShift} disabled={workLogsLoading || cleaningAppointmentsLoading}>
               Refresh <Icon name="arrow" size={18} />
             </button>
           </div>
@@ -416,60 +717,204 @@ export function Employee({ user, onLogout, onUserUpdated }) {
           )}
 
           {userId && (
-            <div className="profile-panel employee-editor-panel">
-              <span>{activeWorkLog ? 'Current shift' : 'New worklog'}</span>
-              <h2>{activeWorkLog ? 'Check out or correct time' : 'Start a shift'}</h2>
-              <p>
-                {activeWorkLog
-                  ? 'Use check-out now to capture the current moment. Older worklogs can be corrected from the history tab.'
-                  : 'Use check-in now to start your shift. You can correct the check-in time before checking out.'}
-              </p>
-
-              <div className="field-row">
-                <div className="field">
-                  <label>Check-in time</label>
-                  <input
-                    type="datetime-local"
-                    value={shiftStartInput}
-                    onChange={(event) => setShiftStartInput(event.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label>Check-out time</label>
-                  <input
-                    type="datetime-local"
-                    value={shiftEndInput}
-                    onChange={(event) => setShiftEndInput(event.target.value)}
-                    placeholder="Optional"
-                    disabled={!activeWorkLog}
-                  />
-                </div>
-              </div>
-
-              <div className="employee-actions">
+            <>
+              <div className="profile-panel employee-editor-panel">
                 {activeWorkLog ? (
-                  <button
-                    className="btn btn-primary"
-                    type="button"
-                    onClick={handleCheckOutNow}
-                    disabled={savingAction === 'check-out-now'}
-                  >
-                    {savingAction === 'check-out-now' ? 'Saving...' : 'Check out now'}
-                    <Icon name="check" size={18} />
-                  </button>
+                  <>
+                    <span>Current shift</span>
+                    <h2>Check out or correct time</h2>
+                    <p>Use check-out now to capture the current moment. Older worklogs can be corrected from the history tab.</p>
+
+                    <div className="field-row">
+                      <div className="field">
+                        <label>Check-in time</label>
+                        <input
+                          type="datetime-local"
+                          value={shiftStartInput}
+                          onChange={(event) => setShiftStartInput(event.target.value)}
+                        />
+                      </div>
+                      <div className="field">
+                        <label>Check-out time</label>
+                        <input
+                          type="datetime-local"
+                          value={shiftEndInput}
+                          onChange={(event) => setShiftEndInput(event.target.value)}
+                          placeholder="Optional"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="employee-actions">
+                      <button
+                        className="btn btn-primary"
+                        type="button"
+                        onClick={handleCheckOutNow}
+                        disabled={savingAction === 'check-out-now'}
+                      >
+                        {savingAction === 'check-out-now' ? 'Saving...' : 'Check out now'}
+                        <Icon name="check" size={18} />
+                      </button>
+                    </div>
+                  </>
+                ) : isCleaningStaff ? (
+                  <>
+                    <span>Today</span>
+                    <h2>{selectedTodayAppointment ? "Check in for today's assignment" : 'No assignment today'}</h2>
+                    <p>
+                      {selectedTodayAppointment
+                        ? "Check in when you arrive for one of today's assigned cleaning appointments."
+                        : 'Create a new assignment for today before checking in.'}
+                    </p>
+
+                    {cleaningAppointmentsLoading && (
+                      <div className="profile-empty">Loading today's assignments...</div>
+                    )}
+
+                    {!cleaningAppointmentsLoading && todayCleaningAppointments.length > 0 && (
+                      <>
+                        {todayCleaningAppointments.length > 1 && (
+                          <div className="field-row">
+                            <div className="field">
+                              <label>Assignment</label>
+                              <select
+                                value={selectedTodayAppointment?.id || ''}
+                                onChange={(event) => setSelectedTodayAppointmentId(event.target.value)}
+                              >
+                                {todayCleaningAppointments.map((appointment) => (
+                                  <option key={appointment.id} value={appointment.id}>
+                                    {getAppointmentCustomerName(appointment)} - {formatTimeOnly(appointment.appointmentTime)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedTodayAppointment && (
+                          <dl className="employee-history-grid">
+                            <div>
+                              <dt>Customer</dt>
+                              <dd>{getAppointmentCustomerName(selectedTodayAppointment)}</dd>
+                            </div>
+                            <div>
+                              <dt>Time</dt>
+                              <dd>{formatTimeOnly(selectedTodayAppointment.appointmentTime)}</dd>
+                            </div>
+                            <div>
+                              <dt>Duration</dt>
+                              <dd>{formatDuration(selectedTodayAppointment.durationMinutes)}</dd>
+                            </div>
+                          </dl>
+                        )}
+                      </>
+                    )}
+
+                    {!cleaningAppointmentsLoading && !todayCleaningAppointments.length && (
+                      <div className="profile-empty">No cleaning assignment is assigned to you today.</div>
+                    )}
+
+                    <div className="employee-actions">
+                      <button
+                        className="btn btn-primary"
+                        type="button"
+                        onClick={handleCheckInNow}
+                        disabled={savingAction === 'check-in-now' || !selectedTodayAppointment}
+                      >
+                        {savingAction === 'check-in-now' ? 'Saving...' : 'Check in now'}
+                        <Icon name="check" size={18} />
+                      </button>
+                    </div>
+                  </>
                 ) : (
-                  <button
-                    className="btn btn-primary"
-                    type="button"
-                    onClick={handleCheckInNow}
-                    disabled={savingAction === 'check-in-now'}
-                  >
-                    {savingAction === 'check-in-now' ? 'Saving...' : 'Check in now'}
-                    <Icon name="check" size={18} />
-                  </button>
+                  <>
+                    <span>New worklog</span>
+                    <h2>Start a shift</h2>
+                    <p>Use check-in now to start your shift. You can correct the check-in time before checking out.</p>
+
+                    <div className="field-row">
+                      <div className="field">
+                        <label>Check-in time</label>
+                        <input
+                          type="datetime-local"
+                          value={shiftStartInput}
+                          onChange={(event) => setShiftStartInput(event.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="employee-actions">
+                    <button
+                      className="btn btn-primary"
+                      type="button"
+                      onClick={handleCheckInNow}
+                      disabled={savingAction === 'check-in-now'}
+                    >
+                      {savingAction === 'check-in-now' ? 'Saving...' : 'Check in now'}
+                      <Icon name="check" size={18} />
+                    </button>
+                    </div>
+                  </>
                 )}
               </div>
-            </div>
+
+              {isCleaningStaff && (
+                <form className="profile-panel employee-editor-panel employee-assignment-panel" onSubmit={handleCreateCleaningAssignment}>
+                  <span>Cleaning assignment</span>
+                  <h2>Create a new assignment</h2>
+
+                  <div className="field-row">
+                    <div className="field">
+                      <label>Customer</label>
+                      <select
+                        value={assignmentCustomerNumber}
+                        onChange={(event) => setAssignmentCustomerNumber(event.target.value)}
+                        disabled={!assignmentCustomers.length}
+                      >
+                        {!assignmentCustomers.length && <option value="">No cleaning customers available</option>}
+                        {assignmentCustomers.map((customer) => (
+                          <option key={customer.customerNumber} value={customer.customerNumber}>
+                            {getCleaningCustomerName(customer)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="field">
+                      <label>Date</label>
+                      <input
+                        type="date"
+                        value={assignmentDate}
+                        onChange={(event) => setAssignmentDate(event.target.value)}
+                      />
+                    </div>
+
+                    <div className="field">
+                      <label>Duration</label>
+                      <select
+                        value={assignmentDurationMinutes}
+                        onChange={(event) => setAssignmentDurationMinutes(event.target.value)}
+                      >
+                        {DURATION_OPTIONS.map((minutes) => (
+                          <option key={minutes} value={minutes}>{formatDuration(minutes)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="employee-actions">
+                    <button
+                      className="btn btn-blue"
+                      type="submit"
+                      disabled={savingAction === 'create-assignment' || !assignmentCustomers.length}
+                    >
+                      {savingAction === 'create-assignment' ? 'Creating...' : 'Create assignment'}
+                      <Icon name="plus" size={18} />
+                    </button>
+                  </div>
+                </form>
+              )}
+            </>
           )}
         </section>
       )}

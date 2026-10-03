@@ -169,6 +169,14 @@
   margin-top: 0;
 }
 
+.employee-assignment-panel {
+  margin-top: 18px;
+}
+
+.employee-assignment-check {
+  margin-bottom: 18px;
+}
+
 .change-password-panel form {
   margin-top: 18px;
 }
@@ -344,6 +352,24 @@
   margin-bottom: 24px;
 }
 
+.employee-cleaning-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.employee-cleaning-stack > .profile-empty {
+  order: 1;
+}
+
+.employee-cleaning-stack > .employee-cleaning-schedule-flow {
+  order: 2;
+}
+
+.employee-cleaning-stack > .employee-cleaning-form {
+  order: 3;
+  margin: 24px 0 0;
+}
+
 .employee-cleaning-unassigned-section {
   margin-bottom: 24px;
 }
@@ -413,6 +439,10 @@
   height: 18px;
 }
 
+.employee-cleaning-template-checkbox {
+  margin-top: 10px;
+}
+
 .employee-cleaning-recurring {
   display: flex;
   flex-wrap: wrap;
@@ -430,13 +460,133 @@
   margin-top: 0;
 }
 
+.employee-cleaning-schedule-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.employee-cleaning-week-board {
+  overflow-x: auto;
+}
+
+.employee-cleaning-week-head {
+  align-items: flex-start;
+}
+
+.employee-cleaning-week-head > div {
+  min-width: 0;
+  text-align: center;
+}
+
+.employee-cleaning-week-head span {
+  display: block;
+  color: var(--pink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.employee-cleaning-week-head p {
+  margin: 7px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.68;
+}
+
+.employee-cleaning-week-actions {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.employee-page .employee-cleaning-week-actions .btn-ghost {
+  min-height: 40px;
+  background: var(--cream);
+  color: var(--ink);
+  border-color: var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
+}
+
+.employee-cleaning-week-grid {
+  min-width: 780px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(104px, 1fr));
+  border-top: 2px solid var(--ink);
+  border-left: 2px solid var(--ink);
+}
+
+.employee-cleaning-week-day {
+  min-width: 0;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--white);
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  padding: 10px;
+}
+
+.employee-cleaning-week-day.today {
+  background: rgba(116, 169, 210, 0.16);
+}
+
 .employee-cleaning-day-selected {
   background: rgba(255,29,255,0.12);
 }
 
 .employee-cleaning-detail {
-  position: sticky;
-  top: 82px;
+  position: static;
+}
+
+.employee-cleaning-detail-popup {
+  max-height: none;
+  overflow: visible;
+}
+
+.employee-cleaning-week-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 2px solid rgba(28,26,28,0.14);
+  padding-bottom: 8px;
+}
+
+.employee-cleaning-week-day-head span {
+  color: var(--pink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.employee-cleaning-week-day-head strong {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: var(--cream);
+  border: 2px solid rgba(28,26,28,0.16);
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.employee-cleaning-week-events {
+  display: grid;
+  gap: 8px;
+}
+
+.employee-cleaning-week-empty {
+  margin-top: auto;
+  color: rgba(28,26,28,0.48);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
 }
 
 .employee-cleaning-empty {
@@ -662,8 +812,12 @@
   .profile-hero { align-items: flex-start; flex-direction: column; }
   .employee-history-layout,
   .employee-history-grid,
-  .account-meta { grid-template-columns: 1fr; }
-  .employee-cleaning-detail { position: static; }
+  .account-meta,
+  .employee-cleaning-schedule-flow { grid-template-columns: 1fr; }
+  .employee-cleaning-detail {
+    position: static;
+    max-height: none;
+  }
   .request-card-main { grid-template-columns: 1fr auto; }
   .request-card-main dl { grid-column: 1 / -1; }
 }
@@ -672,6 +826,13 @@
   .employee-tabs,
   .profile-section-head { align-items: flex-start; flex-direction: column; }
   .employee-cleaning-form-head,
-  .employee-cleaning-day-head { align-items: flex-start; flex-direction: column; }
+  .employee-cleaning-day-head,
+  .employee-cleaning-week-head { align-items: flex-start; flex-direction: column; }
+  .employee-cleaning-week-head > div { text-align: left; }
+  .employee-cleaning-week-grid {
+    min-width: 700px;
+    grid-template-columns: repeat(7, minmax(96px, 1fr));
+  }
+  .employee-cleaning-week-day { min-height: 320px; }
   .request-card-main dl { grid-template-columns: 1fr; }
 }

@@ -64,10 +64,9 @@ function formatDuration(minutes) {
 
   const hours = Math.floor(totalMinutes / 60);
   const remainder = totalMinutes % 60;
+  const hourLabel = remainder ? (totalMinutes / 60).toFixed(1) : String(hours);
 
-  if (!hours) return `${remainder} min`;
-  if (!remainder) return `${hours}h`;
-  return `${hours}h ${remainder} min`;
+  return `${hourLabel} h`;
 }
 
 function parseOptionalId(value) {
