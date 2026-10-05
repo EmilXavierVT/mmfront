@@ -269,7 +269,7 @@ function normalizeListResponse(data) {
   return [];
 }
 
-export function CleaningSchedulePanel({ user }) {
+export function CleaningSchedulePanel({ user, managerMode = false }) {
   const cleaningStaffId = Number(user?.id || user?.userId);
   const [appointments, setAppointments] = useState([]);
   const [users, setUsers] = useState([]);
@@ -320,7 +320,8 @@ export function CleaningSchedulePanel({ user }) {
     () => sortedAppointments.find((appointment) => appointment.id === selectedAppointmentId) || null,
     [selectedAppointmentId, sortedAppointments],
   );
-  const selectedAppointmentCanBeEdited = !selectedAppointment
+  const selectedAppointmentCanBeEdited = managerMode
+    || !selectedAppointment
     || selectedAppointment.cleaningStaffId == null
     || selectedAppointment.cleaningStaffId === cleaningStaffId;
   const selectedDayLabel = formatCalendarDay(selectedDateKey);
@@ -648,7 +649,7 @@ export function CleaningSchedulePanel({ user }) {
       <div className="profile-section-head">
         <div>
           <div className="section-eyebrow">Cleaning</div>
-          <h2>Schedule cleaning visits</h2>
+          <h2>{managerMode ? 'Manage cleaning visits' : 'Schedule cleaning visits'}</h2>
         </div>
         <button className="btn btn-blue" type="button" onClick={() => refreshSchedule()} disabled={scheduleLoading}>
           Refresh <Icon name="arrow" size={18} />
@@ -917,7 +918,7 @@ export function CleaningSchedulePanel({ user }) {
                     ))}
                   </div>
 
-                  {!selectedAppointment.cleaningStaffId && (
+                  {!managerMode && !selectedAppointment.cleaningStaffId && (
                     <div className="employee-actions">
                       <button
                         className="btn btn-blue"

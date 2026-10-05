@@ -2,6 +2,7 @@ const adminTabs = [
   ['requests', 'Requests'],
   ['products', 'Products'],
   ['calendar', 'Calendar'],
+  ['invoicing', 'Invoicing'],
   ['users', 'Users'],
   ['customers', 'Customers'],
   ['email', 'Email'],

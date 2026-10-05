@@ -24,6 +24,9 @@ export const userApi = {
   setCleaningStaff: (id) => apiRequest(`/user/${id}/cleaning-staff`, {
     method: 'PUT',
   }),
+  setCleaningManager: (id) => apiRequest(`/user/${id}/cleaning-manager`, {
+    method: 'PUT',
+  }),
   setYouthIsland: (id) => apiRequest(`/user/${id}/youth-island`, {
     method: 'PUT',
   }),

@@ -203,6 +203,10 @@ export function isCleaningStaffUser(customer) {
   return hasRole(customer, 'cleaning_staff');
 }
 
+export function isCleaningManagerUser(customer) {
+  return hasRole(customer, 'cleaning_manager');
+}
+
 export function isSubscriberUser(customer) {
   return hasRole(customer, 'subscriber');
 }

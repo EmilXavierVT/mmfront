@@ -13,6 +13,7 @@ const PAGE_PATHS = {
   about: '/about',
   profile: '/profile',
   employee: '/employee',
+  cleaningManager: '/cleaning-manager',
   admin: '/admin',
   youthIsland: '/youth-island',
 };
@@ -79,6 +80,12 @@ const SEO_CONTENT = {
     title: 'Employee | Morgendagens Måltid',
     description: 'Morgendagens Måltid employee area.',
     keywords: 'Morgendagens Måltid employee',
+    robots: 'noindex,nofollow',
+  },
+  cleaningManager: {
+    title: 'Cleaning manager | Morgendagens Måltid',
+    description: 'Morgendagens Måltid cleaning manager area.',
+    keywords: 'Morgendagens Måltid cleaning manager',
     robots: 'noindex,nofollow',
   },
   admin: {

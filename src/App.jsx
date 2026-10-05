@@ -5,6 +5,7 @@ import { getStoredUser, logout, setStoredUser } from './api/client.js';
 import { productApi } from './api/products.js';
 import { AuthModal } from './components/Auth/AuthModal.jsx';
 import { Employee } from './components/Employee/Employee.jsx';
+import { CleaningManager } from './components/Employee/CleaningManager.jsx';
 import { About } from './components/Marketing/About.jsx';
 import { Admin } from './components/Admin/Admin.jsx';
 import { BigCTA } from './components/Marketing/BigCTA.jsx';
@@ -36,6 +37,7 @@ const ROUTES = {
   '/about': 'about',
   '/profile': 'profile',
   '/employee': 'employee',
+  '/cleaning-manager': 'cleaningManager',
   '/admin': 'admin',
   '/youth-island': 'youthIsland',
 };
@@ -47,6 +49,7 @@ const PAGE_PATHS = {
   about: '/about',
   profile: '/profile',
   employee: '/employee',
+  cleaningManager: '/cleaning-manager',
   admin: '/admin',
   youthIsland: '/youth-island',
 };
@@ -74,6 +77,7 @@ function hasUserRole(user, expectedRole) {
 
 function getUserHomePage(user) {
   if (hasUserRole(user, 'ADMIN')) return 'admin';
+  if (hasUserRole(user, 'CLEANING_MANAGER')) return 'cleaningManager';
   if (hasUserRole(user, 'YOUTH_ISLAND')) return 'youthIsland';
   if (getUserRoles(user).some(isEmployeeRole)) return 'employee';
   return 'profile';
@@ -147,6 +151,18 @@ function EmployeePage({ user, onLogout, onUserUpdated }) {
   return (
     <Page>
       <Employee user={user} onLogout={onLogout} onUserUpdated={onUserUpdated} />
+    </Page>
+  );
+}
+
+function CleaningManagerPage({ user, onLogout, onUserUpdated }) {
+  if (!user || (!hasUserRole(user, 'ADMIN') && !hasUserRole(user, 'CLEANING_MANAGER'))) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <Page>
+      <CleaningManager user={user} onLogout={onLogout} onUserUpdated={onUserUpdated} />
     </Page>
   );
 }
@@ -297,6 +313,7 @@ export default function App() {
     [products],
   );
   const isAdmin = hasUserRole(user, 'ADMIN');
+  const canUseCleaningManager = isAdmin || hasUserRole(user, 'CLEANING_MANAGER');
   const canUseYouthIsland = isAdmin || hasUserRole(user, 'YOUTH_ISLAND');
   const accountPage = getUserHomePage(user);
   const isYouthIslandRoute = active === 'youthIsland';
@@ -431,6 +448,7 @@ export default function App() {
       <Topbar
         user={user}
         isAdmin={isAdmin}
+        showCleaningManager={canUseCleaningManager}
         showYouthIsland={canUseYouthIsland}
         accountPath={PAGE_PATHS[accountPage] || PAGE_PATHS.profile}
         onAccount={() => openAuth()}
@@ -461,6 +479,10 @@ export default function App() {
         <Route
           path="/employee"
           element={<EmployeePage user={user} onLogout={handleLogout} onUserUpdated={handleUserUpdated} />}
+        />
+        <Route
+          path="/cleaning-manager"
+          element={<CleaningManagerPage user={user} onLogout={handleLogout} onUserUpdated={handleUserUpdated} />}
         />
         <Route
           path="/about"

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { productApi } from '../../api/products.js';
-import { normalizeProduct } from '../../lib/products.js';
+import { getProductYear, normalizeProduct } from '../../lib/products.js';
 import { youthIslandBookingApi } from '../../api/youthIslandBookings.js';
 import { Icon } from '../Shared/Icon.jsx';
 import './YouthIsland.css';
@@ -156,6 +156,7 @@ export function YouthIsland({ user }) {
     () => products
       .map(normalizeProduct)
       .filter(product => product.economicProductNumber)
+      .filter(product => getProductYear(product) === 2026)
       .sort((a, b) => a.name.localeCompare(b.name, 'da')),
     [products],
   );

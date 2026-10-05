@@ -5,6 +5,7 @@ import {
   getType,
   isAdminUser,
   isCleaningClientUser,
+  isCleaningManagerUser,
   isCleaningStaffUser,
   isEmployeeUser,
   isYouthIslandUser,
@@ -31,6 +32,7 @@ export function UsersPanel({
   onSelectCustomer,
   onMakeAdmin,
   onMakeCleaningClient,
+  onMakeCleaningManager,
   onMakeCleaningStaff,
   onMakeEmployee,
   onMakeYouthIsland,
@@ -110,6 +112,7 @@ export function UsersPanel({
                 >
                   <option value="USER">User</option>
                   <option value="CLEANING_CLIENT">Cleaning customer</option>
+                  <option value="CLEANING_MANAGER">Cleaning manager</option>
                   <option value="EMPLOYEE">Employee</option>
                   <option value="CLEANING_STAFF">Cleaning staff</option>
                   <option value="YOUTH_ISLAND">Ungdomsøen</option>
@@ -253,6 +256,17 @@ export function UsersPanel({
                                 disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make cleaning staff'}
+                                <Icon name="spray" size={18} />
+                              </button>
+                            )}
+                            {!isCleaningManagerUser(selectedCustomer) && (
+                              <button
+                                className="btn btn-ghost"
+                                type="button"
+                                onClick={() => onMakeCleaningManager(selectedCustomer)}
+                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                              >
+                                {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make cleaning manager'}
                                 <Icon name="spray" size={18} />
                               </button>
                             )}

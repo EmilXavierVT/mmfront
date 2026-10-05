@@ -9,6 +9,7 @@ import { CalendarPanel } from './CalendarPanel/CalendarPanel.jsx';
 import { CustomersPanel } from './CustomersPanel/CustomersPanel.jsx';
 import { EmailPanel } from './EmailPanel/EmailPanel.jsx';
 import { HistoryPanel } from './HistoryPanel/HistoryPanel.jsx';
+import { InvoicingPanel } from './InvoicingPanel/InvoicingPanel.jsx';
 import { ProductsPanel } from './ProductsPanel/ProductsPanel.jsx';
 import { RequestsPanel } from './RequestsPanel/RequestsPanel.jsx';
 import { UsersPanel } from './UsersPanel/UsersPanel.jsx';
@@ -53,6 +54,7 @@ function escapeHtml(value) {
 
 function getRoleLabel(role) {
   if (role === 'CLEANING_CLIENT') return 'cleaning customer';
+  if (role === 'CLEANING_MANAGER') return 'cleaning manager';
   if (role === 'EMPLOYEE') return 'employee';
   if (role === 'CLEANING_STAFF') return 'employee';
   if (role === 'ADMIN') return 'admin';
@@ -207,7 +209,7 @@ export function Admin({
     customersLoading: economicCustomersLoading,
     customersError: economicCustomersError,
     loadCustomers: loadEconomicCustomers,
-  } = useEconomicCustomers(adminTab === 'customers' || adminTab === 'email');
+  } = useEconomicCustomers(adminTab === 'customers' || adminTab === 'email' || adminTab === 'invoicing');
   const productTypeOptions = Object.entries(PRODUCT_TYPE_LABELS);
 
   const unansweredTypeOneRequests = useMemo(
@@ -720,6 +722,26 @@ export function Admin({
     }
   };
 
+  const makeUserCleaningManager = async (selectedUser) => {
+    if (!selectedUser?.id || settingAdminUserId) return;
+
+    setSettingAdminUserId(selectedUser.id);
+    setUserError('');
+    setUserSuccess('');
+
+    try {
+      await userApi.setCleaningManager(selectedUser.id);
+      const refreshedUsers = await userApi.getAll();
+      setUsers(Array.isArray(refreshedUsers) ? refreshedUsers : users);
+      setSelectedCustomerKey(selectedUser.key);
+      setUserSuccess(`${selectedUser.email} is now a cleaning manager.`);
+    } catch (err) {
+      setUserError(err.message || 'Could not add the cleaning manager role.');
+    } finally {
+      setSettingAdminUserId(null);
+    }
+  };
+
   const makeUserYouthIsland = async (selectedUser) => {
     if (!selectedUser?.id || settingAdminUserId) return;
 
@@ -831,6 +853,7 @@ export function Admin({
           onMakeAdmin={makeUserAdmin}
           onMakeCleaningClient={makeUserCleaningClient}
           onMakeCleaningStaff={makeUserCleaningStaff}
+          onMakeCleaningManager={makeUserCleaningManager}
           onMakeEmployee={makeUserEmployee}
           onMakeYouthIsland={makeUserYouthIsland}
         />
@@ -868,6 +891,19 @@ export function Admin({
           users={customers}
           economicCustomers={economicCustomers}
           senderEmail={user?.email}
+        />
+      )}
+
+      {adminTab === 'invoicing' && (
+        <InvoicingPanel
+          products={products}
+          productsLoading={productsLoading}
+          productsError={productsError}
+          customers={economicCustomers}
+          customersLoading={economicCustomersLoading}
+          customersError={economicCustomersError}
+          onRefreshCustomers={loadEconomicCustomers}
+          onRefreshProducts={onProductsChanged}
         />
       )}
 

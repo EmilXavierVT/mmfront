@@ -53,6 +53,92 @@
   justify-content: center;
 }
 
+.admin-product-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.admin-product-form-actions .btn {
+  min-width: 190px;
+  justify-content: center;
+}
+
+.admin-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-checkbox-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--pink);
+}
+
+.admin-table-wrap {
+  margin-top: 22px;
+  overflow-x: auto;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--cream);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(34,29,31,0.14);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.admin-table td small {
+  display: block;
+  margin-top: 4px;
+  color: rgba(34,29,31,0.62);
+}
+
+.admin-invoice-tabs { margin-bottom: 20px; }
+
+.admin-invoice-events {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.admin-invoice-status {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-top: 2px solid rgba(34,29,31,0.18);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-invoice-status span,
+.admin-invoice-status small {
+  color: rgba(34,29,31,0.66);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .admin-email-layout {
   display: grid;
   grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
