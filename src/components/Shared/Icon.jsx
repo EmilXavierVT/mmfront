@@ -7,6 +7,7 @@ export function Icon({ name, size = 20 }) {
     chev: <path d="M9 6l6 6-6 6"/>,
     chevUp: <path d="m18 15-6-6-6 6"/>,
     chevL: <path d="M15 6l-6 6 6 6"/>,
+    menu: <><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></>,
     plus: <><path d="M12 5v14M5 12h14"/></>,
     minus: <path d="M5 12h14"/>,
     check: <path d="M5 12l5 5L20 7"/>,

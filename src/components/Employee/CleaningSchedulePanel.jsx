@@ -13,7 +13,6 @@ import {
   getUserLastName,
 } from '../Admin/adminUtils.js';
 
-const DEFAULT_TASKS = ['Kitchen surfaces', 'Bathroom reset', 'Floors', 'Final walkthrough'];
 const CLEANING_CUSTOMER_GROUP_NUMBER = 5;
 const DURATION_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
 
@@ -189,28 +188,8 @@ function normalizeTasks(tasks) {
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-function buildTasksFromText(taskText, existingTasks = []) {
-  const existingByTitle = Object.fromEntries(existingTasks.map((task) => [task.title.toLowerCase(), task]));
-
-  return String(taskText || '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((title, index) => {
-      const existing = existingByTitle[title.toLowerCase()];
-      return {
-        id: existing?.id || null,
-        title,
-        completed: Boolean(existing?.completed),
-        sortOrder: index + 1,
-      };
-    });
-}
-
 function buildTasksForCopy(tasks) {
-  const sourceTasks = tasks?.length ? tasks : buildTasksFromText(DEFAULT_TASKS.join('\n'));
-
-  return sourceTasks.map((task, index) => ({
+  return (tasks || []).map((task, index) => ({
     id: null,
     title: task.title,
     completed: false,
@@ -232,6 +211,21 @@ function getWeekDays(value) {
   const startDate = getWeekStart(value);
 
   return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+
+    return {
+      date,
+      key: getDateKey(date),
+      isToday: getDateKey(date) === getDateKey(new Date()),
+    };
+  });
+}
+
+function getCalendarRailDays(value) {
+  const startDate = getWeekStart(value);
+
+  return Array.from({ length: 84 }, (_, index) => {
     const date = new Date(startDate);
     date.setDate(startDate.getDate() + index);
 
@@ -285,6 +279,11 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
   const [editAppointmentTime, setEditAppointmentTime] = useState('');
   const [editDurationMinutes, setEditDurationMinutes] = useState('');
   const [copyIntervalWeeks, setCopyIntervalWeeks] = useState('1');
+  const [detailSectionsOpen, setDetailSectionsOpen] = useState({
+    overview: true,
+    edit: false,
+    tasks: true,
+  });
 
   const cleaningClients = useMemo(() => buildCleaningClientSummaries(economicCustomers), [economicCustomers]);
   const cleaningClientsById = useMemo(
@@ -297,8 +296,13 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
     [cleaningStaff],
   );
   const sortedAppointments = useMemo(
-    () => [...appointments].sort((a, b) => new Date(a.appointmentTime || 0) - new Date(b.appointmentTime || 0)),
-    [appointments],
+    () => [...appointments]
+      .filter((appointment) => (
+        managerMode
+        || String(appointment.cleaningStaffId || '') === String(cleaningStaffId)
+      ))
+      .sort((a, b) => new Date(a.appointmentTime || 0) - new Date(b.appointmentTime || 0)),
+    [appointments, cleaningStaffId, managerMode],
   );
 
   const appointmentsByDay = useMemo(() => (
@@ -312,6 +316,7 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
   ), [sortedAppointments]);
 
   const weekDays = useMemo(() => getWeekDays(calendarCursor), [calendarCursor]);
+  const calendarRailDays = useMemo(() => getCalendarRailDays(calendarCursor), [calendarCursor]);
   const weekRangeLabel = useMemo(() => formatWeekRange(calendarCursor), [calendarCursor]);
   const weeklyAppointmentCount = useMemo(() => (
     weekDays.reduce((count, day) => count + (appointmentsByDay[day.key]?.length || 0), 0)
@@ -322,8 +327,14 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
   );
   const selectedAppointmentCanBeEdited = managerMode
     || !selectedAppointment
-    || selectedAppointment.cleaningStaffId == null
-    || selectedAppointment.cleaningStaffId === cleaningStaffId;
+    || String(selectedAppointment.cleaningStaffId || '') === String(cleaningStaffId || '');
+
+  function toggleDetailSection(section) {
+    setDetailSectionsOpen((current) => ({
+      ...current,
+      [section]: !current[section],
+    }));
+  }
   const selectedDayLabel = formatCalendarDay(selectedDateKey);
   useEffect(() => {
     if (!cleaningStaffId) return;
@@ -335,6 +346,13 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
       setScheduleError('');
 
       try {
+        let syncError = null;
+        try {
+          await cleaningAppointmentApi.syncSheets();
+        } catch (err) {
+          syncError = err;
+        }
+
         const [userData, appointmentData, economicCustomerData] = await Promise.all([
           userApi.getAll(),
           cleaningAppointmentApi.getAll(),
@@ -351,6 +369,9 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
         setUsers(nextUsers);
         setEconomicCustomers(nextEconomicCustomers);
         setAppointments(nextAppointments);
+        if (syncError) {
+          setScheduleError(syncError.message || 'Could not refresh cleaning appointments from the sheets.');
+        }
       } catch (err) {
         if (!ignore) {
           setScheduleError(err.message || 'Could not load your cleaning schedule.');
@@ -425,11 +446,23 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
     setScheduleError('');
 
     try {
+      let syncError = null;
+      try {
+        await cleaningAppointmentApi.syncSheets();
+      } catch (err) {
+        syncError = err;
+      }
+
       const appointmentData = await cleaningAppointmentApi.getAll();
       const nextAppointmentData = normalizeListResponse(appointmentData);
       const nextAppointments = nextAppointmentData.map(normalizeAppointment);
       setAppointments(nextAppointments);
-      setScheduleSuccess(successMessage);
+      if (syncError) {
+        setScheduleError(syncError.message || 'Could not refresh cleaning appointments from the sheets.');
+        setScheduleSuccess('');
+      } else {
+        setScheduleSuccess(successMessage);
+      }
       return nextAppointments;
     } catch (err) {
       setScheduleError(err.message || 'Could not refresh your cleaning schedule.');
@@ -471,13 +504,13 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
 
   async function handleToggleTask(taskIndex, completed) {
     if (!selectedAppointment?.id || savingAction) return;
-    if (selectedAppointment.cleaningStaffId && selectedAppointment.cleaningStaffId !== cleaningStaffId) {
+    if (!managerMode && selectedAppointment.cleaningStaffId !== cleaningStaffId) {
       setScheduleError('This assignment belongs to another cleaning employee.');
       setScheduleSuccess('');
       return;
     }
 
-    const nextTasks = (selectedAppointment.tasks?.length ? selectedAppointment.tasks : buildTasksFromText(DEFAULT_TASKS.join('\n')))
+    const nextTasks = (selectedAppointment.tasks || [])
       .map((task, index) => (
         index === taskIndex
           ? { ...task, completed }
@@ -644,6 +677,37 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
     }
   }
 
+  async function handleDeleteAssignment() {
+    if (!selectedAppointment?.id || savingAction) return;
+    if (!selectedAppointmentCanBeEdited) {
+      setScheduleError('This assignment belongs to another cleaning employee.');
+      setScheduleSuccess('');
+      return;
+    }
+
+    const shouldDelete = window.confirm('Delete this cleaning assignment?');
+    if (!shouldDelete) return;
+
+    const deletedDateKey = getDateKey(selectedAppointment.appointmentTime);
+
+    setSavingAction('delete-assignment');
+    setScheduleError('');
+    setScheduleSuccess('');
+
+    try {
+      await cleaningAppointmentApi.delete(selectedAppointment.id);
+      const nextAppointments = await refreshSchedule('Assignment deleted.');
+      const nextSelection = nextAppointments.find((appointment) => getDateKey(appointment.appointmentTime) === deletedDateKey) || null;
+
+      setSelectedAppointmentId(nextSelection?.id || null);
+      setSelectedDateKey(deletedDateKey || getDateKey(new Date()));
+    } catch (err) {
+      setScheduleError(err.message || 'Could not delete the assignment.');
+    } finally {
+      setSavingAction('');
+    }
+  }
+
   return (
     <section className="profile-requests employee-worklogs">
       <div className="profile-section-head">
@@ -670,7 +734,7 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
           )}
 
           <div className="employee-cleaning-layout employee-cleaning-schedule-flow">
-            <section className="admin-calendar-board employee-cleaning-week-board" aria-label="Weekly cleaning appointment calendar">
+            <section className="admin-calendar-board employee-cleaning-week-board" aria-label="Cleaning appointment calendar">
               <div className="admin-calendar-head employee-cleaning-week-head">
                 <button
                   className="admin-calendar-nav"
@@ -709,7 +773,7 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
               </div>
 
               <div className="employee-cleaning-week-grid">
-                {weekDays.map((day) => {
+                {calendarRailDays.map((day) => {
                   const dayAppointments = appointmentsByDay[day.key] || [];
                   const isSelectedDay = day.key === selectedDateKey;
 
@@ -783,46 +847,62 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
                   <span>{selectedAppointment ? 'Selected appointment' : 'Selected day'}</span>
                   <h3>{selectedAppointment ? getClientName(cleaningClientsById[getAppointmentCustomerKey(selectedAppointment)]) : selectedDayLabel}</h3>
                 </div>
-                <div className="employee-status-pill">
-                  {selectedAppointment
-                    ? (selectedAppointment.vacation ? 'Vacation' : selectedAppointment.projectName || 'Scheduled')
-                    : 'No appointment selected'}
-                </div>
               </div>
 
               {selectedAppointment ? (
                 <>
-                  <dl className="employee-history-grid">
-                    <div>
-                      <dt>Customer</dt>
-                      <dd>{getClientName(cleaningClientsById[getAppointmentCustomerKey(selectedAppointment)])}</dd>
+                  <section className={`employee-cleaning-disclosure ${detailSectionsOpen.overview ? 'open' : ''}`}>
+                    <button
+                      className="employee-cleaning-disclosure-toggle"
+                      type="button"
+                      aria-expanded={detailSectionsOpen.overview}
+                      onClick={() => toggleDetailSection('overview')}
+                    >
+                      <span>Overview</span>
+                      <Icon name={detailSectionsOpen.overview ? 'chevUp' : 'chev'} size={18} />
+                    </button>
+                    <div className="employee-cleaning-disclosure-body">
+                      <dl className="employee-history-grid">
+                        <div>
+                          <dt>Customer</dt>
+                          <dd>{getClientName(cleaningClientsById[getAppointmentCustomerKey(selectedAppointment)])}</dd>
+                        </div>
+                        <div>
+                          <dt>Day</dt>
+                          <dd>{formatCalendarDay(selectedAppointment.appointmentTime)}</dd>
+                        </div>
+                        <div>
+                          <dt>Time</dt>
+                          <dd>{formatDate(selectedAppointment.appointmentTime)}</dd>
+                        </div>
+                        <div>
+                          <dt>Duration</dt>
+                          <dd>{formatDuration(selectedAppointment.durationMinutes)}</dd>
+                        </div>
+                        <div>
+                          <dt>Assigned staff</dt>
+                          <dd>
+                            {selectedAppointment.cleaningStaffId
+                              ? getStaffName(cleaningStaffById[String(selectedAppointment.cleaningStaffId)])
+                              : 'Unassigned'}
+                          </dd>
+                        </div>
+                      </dl>
                     </div>
-                    <div>
-                      <dt>Day</dt>
-                      <dd>{formatCalendarDay(selectedAppointment.appointmentTime)}</dd>
-                    </div>
-                    <div>
-                      <dt>Time</dt>
-                      <dd>{formatDate(selectedAppointment.appointmentTime)}</dd>
-                    </div>
-                    <div>
-                      <dt>Duration</dt>
-                      <dd>{formatDuration(selectedAppointment.durationMinutes)}</dd>
-                    </div>
-                    <div>
-                      <dt>Assigned staff</dt>
-                      <dd>
-                        {selectedAppointment.cleaningStaffId
-                          ? getStaffName(cleaningStaffById[String(selectedAppointment.cleaningStaffId)])
-                          : 'Unassigned'}
-                      </dd>
-                    </div>
-                  </dl>
+                  </section>
 
-                  <form className="employee-cleaning-day-section employee-cleaning-assignment-edit" onSubmit={handleSaveAssignment}>
-                    <div className="employee-cleaning-day-head">
-                      <h4>Edit assignment</h4>
-                    </div>
+                  <section className={`employee-cleaning-disclosure ${detailSectionsOpen.edit ? 'open' : ''}`}>
+                    <button
+                      className="employee-cleaning-disclosure-toggle"
+                      type="button"
+                      aria-expanded={detailSectionsOpen.edit}
+                      onClick={() => toggleDetailSection('edit')}
+                    >
+                      <span>Edit assignment</span>
+                      <Icon name={detailSectionsOpen.edit ? 'chevUp' : 'chev'} size={18} />
+                    </button>
+
+                    <form className="employee-cleaning-disclosure-body employee-cleaning-assignment-edit" onSubmit={handleSaveAssignment}>
 
                     <div className="field-row">
                       <div className="field">
@@ -898,25 +978,49 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
                         {savingAction === 'copy-assignment' ? 'Copying...' : 'Copy assignment'}
                         <Icon name="plus" size={18} />
                       </button>
+                      <button
+                        className="btn btn-danger"
+                        type="button"
+                        onClick={handleDeleteAssignment}
+                        disabled={savingAction === 'delete-assignment' || !selectedAppointmentCanBeEdited}
+                      >
+                        {savingAction === 'delete-assignment' ? 'Deleting...' : 'Delete assignment'}
+                        <Icon name="x" size={18} />
+                      </button>
                     </div>
                   </form>
+                  </section>
 
-                  <div className="employee-cleaning-day-section">
-                    <div className="employee-cleaning-day-head">
-                      <h4>Tasks</h4>
+                  <section className={`employee-cleaning-disclosure ${detailSectionsOpen.tasks ? 'open' : ''}`}>
+                    <button
+                      className="employee-cleaning-disclosure-toggle"
+                      type="button"
+                      aria-expanded={detailSectionsOpen.tasks}
+                      onClick={() => toggleDetailSection('tasks')}
+                    >
+                      <span>Tasks</span>
+                      <Icon name={detailSectionsOpen.tasks ? 'chevUp' : 'chev'} size={18} />
+                    </button>
+                    <div className="employee-cleaning-disclosure-body">
+                      {selectedAppointment.tasks?.length ? (
+                        selectedAppointment.tasks.map((task, index) => (
+                          <label className="employee-cleaning-checkbox employee-cleaning-task" key={task.id || `${task.title}-${index}`}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(task.completed)}
+                              disabled={!selectedAppointmentCanBeEdited || savingAction === 'task'}
+                              onChange={(event) => handleToggleTask(index, event.target.checked)}
+                            />
+                            <span>{task.title}</span>
+                          </label>
+                        ))
+                      ) : (
+                        <div className="profile-empty employee-cleaning-empty">
+                          No tasks have been added for this assignment yet.
+                        </div>
+                      )}
                     </div>
-                    {(selectedAppointment.tasks?.length ? selectedAppointment.tasks : buildTasksFromText(DEFAULT_TASKS.join('\n'))).map((task, index) => (
-                      <label className="employee-cleaning-checkbox employee-cleaning-task" key={task.id || `${task.title}-${index}`}>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(task.completed)}
-                          disabled={!selectedAppointmentCanBeEdited || savingAction === 'task'}
-                          onChange={(event) => handleToggleTask(index, event.target.checked)}
-                        />
-                        <span>{task.title}</span>
-                      </label>
-                    ))}
-                  </div>
+                  </section>
 
                   {!managerMode && !selectedAppointment.cleaningStaffId && (
                     <div className="employee-actions">

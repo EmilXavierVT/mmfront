@@ -173,6 +173,103 @@
   margin-top: 18px;
 }
 
+.cleaning-manager-page {
+  overflow-x: hidden;
+}
+
+.cleaning-manager-page .employee-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cleaning-manager-page .employee-tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.cleaning-manager-page .profile-panel,
+.cleaning-manager-page .employee-worklogs,
+.cleaning-manager-page .field,
+.cleaning-manager-page .admin-detail-section,
+.cleaning-manager-page .admin-product-list li > div {
+  min-width: 0;
+}
+
+.cleaning-manager-page .employee-assignment-panel > .field-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.cleaning-manager-page .employee-cleaning-assignment-edit .field-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cleaning-manager-page .cleaning-manager-task-panel > .field-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cleaning-manager-page .employee-assignment-panel textarea,
+.cleaning-manager-page .cleaning-manager-task-panel textarea {
+  min-height: 180px;
+  resize: vertical;
+}
+
+.cleaning-manager-page .admin-product-list li {
+  align-items: center;
+}
+
+.cleaning-manager-page .admin-product-list strong {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.cleaning-staff-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.cleaning-staff-option {
+  width: 100%;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 2px solid rgba(34, 29, 31, 0.18);
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--ink);
+  padding: 11px 13px;
+  text-align: left;
+}
+
+.cleaning-staff-option span,
+.cleaning-staff-option small {
+  min-width: 0;
+}
+
+.cleaning-staff-option span {
+  overflow-wrap: anywhere;
+}
+
+.cleaning-staff-option small {
+  flex: 0 0 auto;
+  color: var(--pink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cleaning-staff-option.selected {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px rgba(193, 58, 134, 0.18);
+}
+
 .employee-assignment-check {
   margin-bottom: 18px;
 }
@@ -304,16 +401,6 @@
   margin: 8px 0 0;
   font-size: clamp(28px, 3vw, 42px);
   line-height: 0.98;
-}
-
-.employee-status-pill {
-  flex: 0 0 auto;
-  border: 2px solid var(--ink);
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
 }
 
 .employee-history-grid {
@@ -468,6 +555,7 @@
 
 .employee-cleaning-week-board {
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .employee-cleaning-week-head {
@@ -528,6 +616,10 @@
   border-right: 2px solid var(--ink);
   border-bottom: 2px solid var(--ink);
   padding: 10px;
+}
+
+.employee-cleaning-week-day:nth-child(n+8) {
+  display: none;
 }
 
 .employee-cleaning-week-day.today {
@@ -597,6 +689,43 @@
   border-top: 2px solid rgba(28,26,28,0.14);
   margin-top: 20px;
   padding-top: 20px;
+}
+
+.employee-cleaning-disclosure {
+  border-top: 2px solid rgba(28,26,28,0.14);
+}
+
+.employee-cleaning-disclosure + .employee-cleaning-disclosure {
+  margin-top: 10px;
+}
+
+.employee-cleaning-disclosure-toggle {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  padding: 14px 0;
+  text-align: left;
+}
+
+.employee-cleaning-disclosure-toggle span {
+  color: var(--pink);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.employee-cleaning-disclosure-body {
+  display: none;
+  padding-bottom: 18px;
+}
+
+.employee-cleaning-disclosure.open .employee-cleaning-disclosure-body {
+  display: block;
 }
 
 .employee-cleaning-day-head {
@@ -814,6 +943,12 @@
   .employee-history-grid,
   .account-meta,
   .employee-cleaning-schedule-flow { grid-template-columns: 1fr; }
+  .cleaning-manager-page .employee-assignment-panel > .field-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cleaning-manager-page .employee-cleaning-assignment-edit .field-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .employee-cleaning-detail {
     position: static;
     max-height: none;
@@ -825,14 +960,136 @@
 @media (max-width: 560px) {
   .employee-tabs,
   .profile-section-head { align-items: flex-start; flex-direction: column; }
+  .cleaning-manager-page {
+    padding-top: 28px;
+  }
+  .cleaning-manager-page .profile-hero,
+  .cleaning-manager-page .profile-panel {
+    border-radius: 10px;
+    padding: 22px;
+  }
+  .cleaning-manager-page .profile-hero h1 {
+    font-size: clamp(38px, 13vw, 56px);
+  }
+  .cleaning-manager-page .profile-hero .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .cleaning-manager-page .employee-tabs {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding-bottom: 0;
+  }
+  .cleaning-manager-page .employee-tab {
+    padding: 12px 14px;
+    font-size: 12px;
+  }
+  .cleaning-manager-page .profile-section-head {
+    gap: 12px;
+  }
+  .cleaning-manager-page .profile-section-head .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .cleaning-manager-page .employee-assignment-panel > .field-row {
+    grid-template-columns: 1fr;
+  }
+  .cleaning-manager-page .employee-cleaning-assignment-edit .field-row {
+    grid-template-columns: 1fr;
+  }
+  .cleaning-manager-page .employee-actions .btn {
+    flex-basis: 100%;
+  }
+  .cleaning-manager-page .admin-product-list li {
+    gap: 10px;
+    padding: 12px;
+  }
+  .cleaning-manager-page .admin-product-list li > span {
+    min-width: 24px;
+  }
   .employee-cleaning-form-head,
   .employee-cleaning-day-head,
   .employee-cleaning-week-head { align-items: flex-start; flex-direction: column; }
   .employee-cleaning-week-head > div { text-align: left; }
-  .employee-cleaning-week-grid {
-    min-width: 700px;
-    grid-template-columns: repeat(7, minmax(96px, 1fr));
+  .cleaning-manager-page .employee-cleaning-week-head {
+    gap: 12px;
   }
-  .employee-cleaning-week-day { min-height: 320px; }
+  .cleaning-manager-page .employee-cleaning-week-head .admin-calendar-nav {
+    order: 2;
+  }
+  .cleaning-manager-page .employee-cleaning-week-head > div {
+    order: 1;
+    width: 100%;
+  }
+  .cleaning-manager-page .employee-cleaning-week-actions {
+    order: 3;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    width: 100%;
+  }
+  .cleaning-manager-page .employee-cleaning-week-actions .btn {
+    justify-content: center;
+    min-width: 0;
+  }
+  .cleaning-manager-page .employee-cleaning-week-board {
+    overflow: visible;
+    padding: 10px;
+  }
+  .employee-cleaning-week-grid {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    display: flex;
+    border-top: 0;
+    border-left: 0;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    padding: 0 0 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .employee-cleaning-week-day {
+    flex: 0 0 calc((100% - 16px) / 3);
+    width: auto;
+    min-height: 230px;
+    display: flex;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .employee-cleaning-week-day:nth-child(n+8) {
+    display: flex;
+  }
+  .employee-cleaning-week-events {
+    gap: 6px;
+  }
+  .employee-cleaning-week-empty {
+    margin: auto 0;
+  }
+  .cleaning-manager-page .employee-history-detail {
+    padding: 18px;
+  }
+  .cleaning-manager-page .employee-history-head {
+    gap: 12px;
+    margin-bottom: 10px;
+    padding-bottom: 14px;
+  }
+  .cleaning-manager-page .employee-history-head h3 {
+    font-size: clamp(26px, 9vw, 34px);
+  }
+  .cleaning-manager-page .employee-history-grid {
+    gap: 10px;
+  }
+  .cleaning-manager-page .employee-history-grid div {
+    padding: 12px;
+  }
+  .cleaning-manager-page .employee-cleaning-disclosure-toggle {
+    min-height: 50px;
+    padding: 12px 0;
+  }
   .request-card-main dl { grid-template-columns: 1fr; }
 }

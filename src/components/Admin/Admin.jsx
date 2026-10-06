@@ -62,6 +62,16 @@ function getRoleLabel(role) {
   return 'user';
 }
 
+function getYouthIslandStartDate(booking) {
+  if (booking?.startDateTime) return booking.startDateTime;
+  if (!booking?.eventDate) return '';
+  return `${booking.eventDate}T00:00:00`;
+}
+
+function getYouthIslandEndDate(booking) {
+  return booking?.endDateTime || getYouthIslandStartDate(booking);
+}
+
 function getRolesForNewUser(role, cleaningClientType = 'FLEX') {
   if (role === 'CLEANING_CLIENT') {
     return Array.from(new Set(['USER', 'CLEANING_CLIENT', cleaningClientType].filter(Boolean)));
@@ -226,9 +236,10 @@ export function Admin({
 
   const youthIslandCalendarBookings = useMemo(
     () => youthIslandBookings
-      .filter(booking => booking.eventDate)
+      .filter(booking => getYouthIslandStartDate(booking))
       .sort((a, b) => (
-        String(a.eventDate || '').localeCompare(String(b.eventDate || '')) || Number(a.id || 0) - Number(b.id || 0)
+        String(getYouthIslandStartDate(a) || '').localeCompare(String(getYouthIslandStartDate(b) || ''))
+        || Number(a.id || 0) - Number(b.id || 0)
       )),
     [youthIslandBookings],
   );
@@ -241,9 +252,10 @@ export function Admin({
       request,
     })),
     ...youthIslandCalendarBookings.map(booking => ({
-      key: `youth-island-${booking.id || `${booking.eventDate}-${booking.customerName}`}`,
+      key: `youth-island-${booking.id || `${getYouthIslandStartDate(booking)}-${booking.customerName}`}`,
       kind: 'youthIsland',
-      startDate: booking.eventDate,
+      startDate: getYouthIslandStartDate(booking),
+      endDate: getYouthIslandEndDate(booking),
       booking,
     })),
   ].sort((a, b) => (

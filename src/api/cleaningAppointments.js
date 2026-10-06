@@ -2,6 +2,9 @@ import { apiRequest } from './client.js';
 
 export const cleaningAppointmentApi = {
   getAll: () => apiRequest('/cleaning-appointment/all'),
+  syncSheets: () => apiRequest('/cleaning-appointment/sync-sheets', {
+    method: 'POST',
+  }),
   getById: (id) => apiRequest(`/cleaning-appointment/${id}`),
   create: (appointment) => apiRequest('/cleaning-appointment/', {
     method: 'POST',

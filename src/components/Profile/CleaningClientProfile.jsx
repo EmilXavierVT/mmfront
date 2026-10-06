@@ -865,9 +865,6 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                         <span>Selected appointment</span>
                         <h3>{formatCalendarDay(selectedAppointment.appointmentTime)}</h3>
                       </div>
-                      <div className="employee-status-pill">
-                        {getAppointmentLabel(selectedAppointment)}
-                      </div>
                     </div>
 
                     <dl className="employee-history-grid">
@@ -1029,7 +1026,6 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                 <span>One year history</span>
                 <h3>Latest vacations</h3>
               </div>
-              <div className="employee-status-pill">{recentVacationAppointments.length} used</div>
             </div>
 
             {recentVacationAppointments.length === 0 ? (
@@ -1067,9 +1063,6 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
                     <div>
                       <span>Appointment #{appointment.id}</span>
                       <h3>{formatCalendarDay(appointment.appointmentTime)}</h3>
-                    </div>
-                    <div className="employee-status-pill">
-                      {appointment.vacation ? 'Vacation' : 'Scheduled'}
                     </div>
                   </div>
 

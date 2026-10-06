@@ -19,6 +19,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 const initialForm = () => ({
   customerName: '',
   eventDate: '',
+  startDateTime: '',
+  endDateTime: '',
   allergies: '',
   location: '',
   spectraReservationNumber: '',
@@ -37,7 +39,8 @@ const PAGE_TABS = {
 
 function formatDate(value) {
   if (!value) return 'Ingen dato';
-  const date = new Date(`${value}T12:00:00`);
+  const normalizedValue = String(value).includes('T') ? value : `${value}T12:00:00`;
+  const date = new Date(normalizedValue);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('da-DK', { dateStyle: 'medium' }).format(date);
 }
@@ -50,6 +53,20 @@ function normalizeTime(value) {
   return value?.length === 5 ? `${value}:00` : value;
 }
 
+function normalizeDateTime(value) {
+  if (!value) return null;
+  return value.length === 16 ? `${value}:00` : value;
+}
+
+function toDateTimeInput(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
+
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
 function formatDateTime(value) {
   if (!value) return 'Ikke registreret';
   const date = new Date(value);
@@ -60,10 +77,55 @@ function formatDateTime(value) {
   }).format(date);
 }
 
+function formatDuration(startValue, endValue) {
+  if (!startValue || !endValue) return 'Ikke angivet';
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 'Ikke angivet';
+
+  const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) return `${remainingMinutes} min.`;
+  if (remainingMinutes === 0) return `${hours} t.`;
+  return `${hours} t. ${remainingMinutes} min.`;
+}
+
+function getBookingStartDateTime(booking) {
+  if (booking?.startDateTime) return booking.startDateTime;
+  if (!booking?.eventDate) return '';
+
+  const firstServingTime = (booking.items || [])
+    .map(item => String(item.servingTime || '').slice(0, 5))
+    .find(Boolean);
+  return `${booking.eventDate}T${firstServingTime || '09:00'}:00`;
+}
+
+function getBookingEndDateTime(booking) {
+  if (booking?.endDateTime) return booking.endDateTime;
+  if (!booking?.eventDate) return '';
+
+  const servingTimes = (booking.items || [])
+    .map(item => String(item.servingTime || '').slice(0, 5))
+    .filter(Boolean)
+    .sort();
+  const lastServingTime = servingTimes.at(-1);
+  return lastServingTime ? `${booking.eventDate}T${lastServingTime}:00` : '';
+}
+
+function getBookingDate(booking) {
+  return String(getBookingStartDateTime(booking) || booking?.eventDate || '').slice(0, 10);
+}
+
 function bookingToForm(booking) {
+  const startDateTime = getBookingStartDateTime(booking);
+
   return {
     customerName: booking.customerName || '',
-    eventDate: booking.eventDate || '',
+    eventDate: getBookingDate(booking),
+    startDateTime: toDateTimeInput(startDateTime),
+    endDateTime: toDateTimeInput(getBookingEndDateTime(booking)),
     allergies: booking.allergies || '',
     location: booking.location || '',
     spectraReservationNumber: booking.spectraReservationNumber || '',
@@ -88,20 +150,21 @@ function productOptionLabel(product) {
   return product.name;
 }
 
-function buildBookingDocument(form, totalGuests, user) {
+function buildBookingDocument(form, user) {
   const lines = [
     'UNGDOMSOEN BESTILLING',
     '',
     `Arrangement: ${form.customerName || 'Ikke angivet'}`,
-    `Dato: ${formatDate(form.eventDate)}`,
+    `Start: ${formatDateTime(form.startDateTime)}`,
+    `Slut: ${formatDateTime(form.endDateTime)}`,
+    `Varighed: ${formatDuration(form.startDateTime, form.endDateTime)}`,
     `Bestillingsdato: ${formatDate(form.orderDate)}`,
     `Spectra reservationsnummer: ${form.spectraReservationNumber || 'Ikke angivet'}`,
     `Lokale eller omraade: ${form.location || 'Ikke angivet'}`,
     `Bestilles af: ${user?.email || 'Ikke angivet'}`,
-    `Personer i alt: ${totalGuests}`,
     `Snackfade: ${Number(form.snackTrayCount) || 0}`,
     '',
-    'SERVERINGER',
+    'FORPLEJNING',
     ...form.items.flatMap((item, index) => [
       '',
       `${index + 1}. ${item.productName || item.menu || 'Servering'}`,
@@ -123,7 +186,7 @@ function buildBookingDocument(form, totalGuests, user) {
 
 function buildDownloadName(form) {
   const rawName = [
-    form.eventDate || today(),
+    form.startDateTime?.slice(0, 10) || form.eventDate || today(),
     form.customerName || 'ungdomsoen-bestilling',
   ].join('-');
   const safeName = rawName
@@ -147,11 +210,6 @@ export function YouthIsland({ user }) {
   const [success, setSuccess] = useState('');
   const [activePageTab, setActivePageTab] = useState(PAGE_TABS.create);
 
-  const totalGuests = useMemo(
-    () => form.items.reduce((total, item) => total + (Number(item.guestCount) || 0), 0),
-    [form.items],
-  );
-
   const productOptions = useMemo(
     () => products
       .map(normalizeProduct)
@@ -162,24 +220,26 @@ export function YouthIsland({ user }) {
   );
 
   const bookingDocumentText = useMemo(
-    () => buildBookingDocument(form, totalGuests, user),
-    [form, totalGuests, user],
+    () => buildBookingDocument(form, user),
+    [form, user],
   );
 
   const earlierBookings = useMemo(
     () => bookings
-      .filter(booking => !booking.eventDate || booking.eventDate < today())
+      .filter(booking => !getBookingDate(booking) || getBookingDate(booking) < today())
       .sort((a, b) => (
-        String(b.eventDate || '').localeCompare(String(a.eventDate || '')) || Number(b.id || 0) - Number(a.id || 0)
+        String(getBookingStartDateTime(b) || '').localeCompare(String(getBookingStartDateTime(a) || ''))
+        || Number(b.id || 0) - Number(a.id || 0)
       )),
     [bookings],
   );
 
   const scheduleBookings = useMemo(
     () => bookings
-      .filter(booking => booking.eventDate && booking.eventDate >= today())
+      .filter(booking => getBookingDate(booking) && getBookingDate(booking) >= today())
       .sort((a, b) => (
-        String(a.eventDate || '').localeCompare(String(b.eventDate || '')) || Number(a.id || 0) - Number(b.id || 0)
+        String(getBookingStartDateTime(a) || '').localeCompare(String(getBookingStartDateTime(b) || ''))
+        || Number(a.id || 0) - Number(b.id || 0)
       )),
     [bookings],
   );
@@ -262,6 +322,14 @@ export function YouthIsland({ user }) {
 
   const updateField = (field, value) => {
     setForm(current => ({ ...current, [field]: value }));
+  };
+
+  const updateStartDateTime = (value) => {
+    setForm(current => ({
+      ...current,
+      startDateTime: value,
+      eventDate: value ? value.slice(0, 10) : '',
+    }));
   };
 
   const updateItem = (index, field, value) => {
@@ -349,10 +417,18 @@ export function YouthIsland({ user }) {
       || !item.room.trim()
     ));
 
-    if (!form.customerName.trim() || !form.eventDate || !form.spectraReservationNumber.trim()) {
-      setError('Udfyld kunde, dato og Spectra reservationsnummer.');
+    if (!form.customerName.trim() || !form.startDateTime || !form.endDateTime || !form.spectraReservationNumber.trim()) {
+      setError('Udfyld kunde, start, slut og Spectra reservationsnummer.');
       return;
     }
+
+    const start = new Date(form.startDateTime);
+    const end = new Date(form.endDateTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      setError('Sluttidspunktet skal være efter starttidspunktet.');
+      return;
+    }
+
     if (invalidItem) {
       setError('Hver servering skal have antal, tidspunkt, e-conomic produkt, menu og lokale.');
       return;
@@ -363,6 +439,9 @@ export function YouthIsland({ user }) {
       const payload = {
         ...form,
         customerName: form.customerName.trim(),
+        eventDate: form.startDateTime.slice(0, 10),
+        startDateTime: normalizeDateTime(form.startDateTime),
+        endDateTime: normalizeDateTime(form.endDateTime),
         allergies: form.allergies.trim() || null,
         location: form.location.trim() || null,
         spectraReservationNumber: form.spectraReservationNumber.trim(),
@@ -431,7 +510,6 @@ export function YouthIsland({ user }) {
               <span>{editingId ? `Redigerer #${editingId}` : 'Ny bestilling'}</span>
               <h2 id="new-youth-booking">{editingId ? 'Opdater arrangement' : 'Arrangement'}</h2>
             </div>
-            <strong>{totalGuests} personer</strong>
           </div>
 
           {error && <div className="form-error">{error}</div>}
@@ -457,12 +535,22 @@ export function YouthIsland({ user }) {
               />
             </div>
             <div className="field">
-              <label htmlFor="youth-event-date">Dato</label>
+              <label htmlFor="youth-start-date-time">Start</label>
               <input
-                id="youth-event-date"
-                type="date"
-                value={form.eventDate}
-                onChange={event => updateField('eventDate', event.target.value)}
+                id="youth-start-date-time"
+                type="datetime-local"
+                value={form.startDateTime}
+                onChange={event => updateStartDateTime(event.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="youth-end-date-time">Slut</label>
+              <input
+                id="youth-end-date-time"
+                type="datetime-local"
+                value={form.endDateTime}
+                onChange={event => updateField('endDateTime', event.target.value)}
                 required
               />
             </div>
@@ -510,7 +598,7 @@ export function YouthIsland({ user }) {
             <div className="youth-service-heading">
               <div>
                 <span>Forplejning</span>
-                <h3>Serveringer</h3>
+                <h3>Bestilling</h3>
               </div>
               <button className="btn btn-cream" type="button" onClick={addItem}>
                 <Icon name="plus" size={17} />
@@ -659,14 +747,15 @@ export function YouthIsland({ user }) {
             </div>
             <h3>{form.customerName || 'Ny bestilling'}</h3>
             <dl className="youth-document-meta">
-              <div><dt>Dato</dt><dd>{formatDate(form.eventDate)}</dd></div>
+              <div><dt>Start</dt><dd>{formatDateTime(form.startDateTime)}</dd></div>
+              <div><dt>Slut</dt><dd>{formatDateTime(form.endDateTime)}</dd></div>
+              <div><dt>Varighed</dt><dd>{formatDuration(form.startDateTime, form.endDateTime)}</dd></div>
               <div><dt>Spectra</dt><dd>{form.spectraReservationNumber || 'Ikke angivet'}</dd></div>
               <div><dt>Lokale</dt><dd>{form.location || 'Ikke angivet'}</dd></div>
-              <div><dt>Personer</dt><dd>{totalGuests}</dd></div>
             </dl>
 
             <div className="youth-document-section">
-              <h4>Serveringer</h4>
+              <h4>Forplejning</h4>
               <div className="youth-document-lines">
                 {form.items.map((item, index) => (
                   <div key={`preview-${index}`}>
@@ -715,11 +804,11 @@ export function YouthIsland({ user }) {
           <div className="youth-upcoming-list">
             {upcomingOverviewBookings.map(booking => (
               <article className="youth-upcoming-item" key={`upcoming-${booking.id}`}>
-                <time dateTime={booking.eventDate || ''}>{formatDate(booking.eventDate)}</time>
+                <time dateTime={getBookingStartDateTime(booking) || ''}>{formatDateTime(getBookingStartDateTime(booking))}</time>
                 <div>
                   <strong>{booking.customerName}</strong>
                   <span>
-                    {booking.totalGuests} personer · {booking.items?.length || 0} serveringer
+                    {formatDuration(getBookingStartDateTime(booking), getBookingEndDateTime(booking))}
                     {booking.location ? ` · ${booking.location}` : ''}
                   </span>
                 </div>
@@ -759,11 +848,10 @@ export function YouthIsland({ user }) {
               <details className="youth-history-item" key={booking.id}>
                 <summary>
                   <div>
-                    <span>{formatDate(booking.eventDate)}</span>
+                    <span>{formatDateTime(getBookingStartDateTime(booking))}</span>
                     <strong>{booking.customerName}</strong>
                   </div>
                   <dl>
-                    <div><dt>Personer</dt><dd>{booking.totalGuests}</dd></div>
                     <div><dt>Spectra</dt><dd>{booking.spectraReservationNumber}</dd></div>
                     <div><dt>Bestilt af</dt><dd>{booking.orderedByName || booking.orderedByEmail}</dd></div>
                   </dl>
@@ -771,6 +859,9 @@ export function YouthIsland({ user }) {
                 </summary>
                 <div className="youth-history-detail">
                   <dl className="youth-history-meta">
+                    <div><dt>Start</dt><dd>{formatDateTime(getBookingStartDateTime(booking))}</dd></div>
+                    <div><dt>Slut</dt><dd>{formatDateTime(getBookingEndDateTime(booking))}</dd></div>
+                    <div><dt>Varighed</dt><dd>{formatDuration(getBookingStartDateTime(booking), getBookingEndDateTime(booking))}</dd></div>
                     <div><dt>Bestillingsdato</dt><dd>{formatDate(booking.orderDate)}</dd></div>
                     <div><dt>Lokale eller område</dt><dd>{booking.location || 'Ikke angivet'}</dd></div>
                     <div><dt>Allergener</dt><dd>{booking.allergies || 'Ingen angivet'}</dd></div>
@@ -827,14 +918,13 @@ export function YouthIsland({ user }) {
           <div className="youth-schedule-list">
             {scheduleBookings.map(booking => (
               <article className="youth-schedule-item" key={`schedule-${booking.id}`}>
-                <time dateTime={booking.eventDate || ''}>
-                  <strong>{formatDate(booking.eventDate)}</strong>
-                  <span>{booking.items?.length || 0} serveringer</span>
+                <time dateTime={getBookingStartDateTime(booking) || ''}>
+                  <strong>{formatDateTime(getBookingStartDateTime(booking))}</strong>
+                  <span>{formatDuration(getBookingStartDateTime(booking), getBookingEndDateTime(booking))}</span>
                 </time>
                 <div className="youth-schedule-body">
                   <h3>{booking.customerName}</h3>
                   <dl>
-                    <div><dt>Personer</dt><dd>{booking.totalGuests}</dd></div>
                     <div><dt>Spectra</dt><dd>{booking.spectraReservationNumber}</dd></div>
                     <div><dt>Lokale</dt><dd>{booking.location || 'Ikke angivet'}</dd></div>
                   </dl>

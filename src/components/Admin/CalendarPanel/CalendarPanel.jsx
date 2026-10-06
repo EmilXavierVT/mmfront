@@ -9,12 +9,26 @@ function getEventTitle(event) {
   return event?.request?.location || 'No location';
 }
 
+function formatDuration(startValue, endValue) {
+  if (!startValue || !endValue) return null;
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return null;
+
+  const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) return `${remainingMinutes} min`;
+  if (remainingMinutes === 0) return `${hours} h`;
+  return `${hours} h ${remainingMinutes} min`;
+}
+
 function getEventSubtitle(event) {
   if (event?.kind === 'youthIsland') {
-    const booking = event.booking;
     return [
       'Ungdomsøen',
-      booking?.totalGuests ? `${booking.totalGuests} pers.` : null,
+      formatDuration(event.startDate, event.endDate),
     ].filter(Boolean).join(' · ');
   }
 
@@ -220,7 +234,19 @@ export function CalendarPanel({
                       </div>
                       <div>
                         <dt>Event day</dt>
-                        <dd>{formatCalendarDay(selectedYouthIslandBooking.eventDate)}</dd>
+                        <dd>{formatCalendarDay(selectedCalendarEvent.startDate)}</dd>
+                      </div>
+                      <div>
+                        <dt>Start</dt>
+                        <dd>{formatDate(selectedCalendarEvent.startDate)}</dd>
+                      </div>
+                      <div>
+                        <dt>End</dt>
+                        <dd>{formatDate(selectedCalendarEvent.endDate)}</dd>
+                      </div>
+                      <div>
+                        <dt>Duration</dt>
+                        <dd>{formatDuration(selectedCalendarEvent.startDate, selectedCalendarEvent.endDate) || 'None'}</dd>
                       </div>
                       <div>
                         <dt>Order date</dt>
@@ -233,10 +259,6 @@ export function CalendarPanel({
                       <div>
                         <dt>Location</dt>
                         <dd>{selectedYouthIslandBooking.location || 'None'}</dd>
-                      </div>
-                      <div>
-                        <dt>Guests</dt>
-                        <dd>{selectedYouthIslandBooking.totalGuests || 0}</dd>
                       </div>
                       <div>
                         <dt>Allergies</dt>
@@ -253,7 +275,7 @@ export function CalendarPanel({
                     </dl>
 
                     <div className="admin-detail-section">
-                      <h4>Serveringer</h4>
+                      <h4>Forplejning</h4>
                       {(!selectedYouthIslandBooking.items || selectedYouthIslandBooking.items.length === 0) && (
                         <div className="request-products-state">No service lines attached to this booking.</div>
                       )}

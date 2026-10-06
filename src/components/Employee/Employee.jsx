@@ -350,9 +350,19 @@ export function Employee({ user, onLogout, onUserUpdated }) {
       setCleaningAppointmentsLoading(true);
 
       try {
+        let syncError = null;
+        try {
+          await cleaningAppointmentApi.syncSheets();
+        } catch (err) {
+          syncError = err;
+        }
+
         const data = await cleaningAppointmentApi.getAll();
         if (!ignore) {
           setCleaningAppointments(normalizeListResponse(data));
+          if (syncError) {
+            setWorkLogsError(syncError.message || 'Could not refresh cleaning appointments from the sheets.');
+          }
         }
       } catch (err) {
         if (!ignore) {
@@ -968,9 +978,6 @@ export function Employee({ user, onLogout, onUserUpdated }) {
                       <div>
                         <span>Selected worklog</span>
                         <h3>#{selectedHistoryLog.id}</h3>
-                      </div>
-                      <div className="employee-status-pill">
-                        {selectedHistoryLog.endTime ? 'Completed' : 'Open'}
                       </div>
                     </div>
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Icon } from '../Shared/Icon.jsx';
 
@@ -9,33 +10,41 @@ export function Topbar({
   onAccount,
   accountPath = '/profile',
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const navItems = [
+    { to: '/', label: 'Home', icon: 'home', iconOnly: true },
+    { to: '/catering', label: 'Catering', icon: 'fork' },
+    { to: '/cleaning', label: 'Cleaning', icon: 'spray' },
+    ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: 'user' }] : []),
+    ...(showCleaningManager ? [{ to: '/cleaning-manager', label: 'Cleaning manager', icon: 'spray' }] : []),
+    ...(showYouthIsland ? [{ to: '/youth-island', label: 'Ungdomsøen', icon: 'clipboard' }] : []),
+  ];
+  const closeMenu = () => setMenuOpen(false);
+
   return (
-    <header className="topbar">
+    <header className={`topbar ${menuOpen ? 'menu-open' : ''}`}>
+      <button
+        className="mobile-menu-toggle"
+        type="button"
+        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        <Icon name={menuOpen ? 'x' : 'menu'} />
+      </button>
       <div className="nav-left">
-        <NavLink className="icon-btn" to="/" aria-label="Home">
-          <Icon name="home" />
-        </NavLink>
-        <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/catering">
-          <Icon name="fork" size={16} /><span>Catering</span>
-        </NavLink>
-        <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/cleaning">
-          <Icon name="spray" size={16} /><span>Cleaning</span>
-        </NavLink>
-        {isAdmin && (
-          <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/admin">
-            <Icon name="user" size={16} /><span>Admin</span>
+        {navItems.map((item) => (
+          <NavLink
+            className={({ isActive }) => `${item.iconOnly ? 'icon-btn' : 'nav-link'} ${isActive ? 'active' : ''}`}
+            to={item.to}
+            aria-label={item.iconOnly ? item.label : undefined}
+            key={item.to}
+          >
+            <Icon name={item.icon} size={item.iconOnly ? 20 : 16} />
+            {!item.iconOnly && <span>{item.label}</span>}
           </NavLink>
-        )}
-        {showCleaningManager && (
-          <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/cleaning-manager">
-            <Icon name="spray" size={16} /><span>Cleaning manager</span>
-          </NavLink>
-        )}
-        {showYouthIsland && (
-          <NavLink className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} to="/youth-island">
-            <Icon name="clipboard" size={16} /><span>Ungdomsøen</span>
-          </NavLink>
-        )}
+        ))}
       </div>
       <NavLink
         className={({ isActive }) => `brand-mark ${isActive ? 'active' : ''}`}
@@ -62,6 +71,31 @@ export function Topbar({
           <button className="icon-btn" type="button" aria-label="Account" onClick={onAccount}><Icon name="user" /></button>
         )}
       </div>
+      <span className="mobile-menu-balance" aria-hidden="true" />
+      <nav className="mobile-menu-panel" aria-label="Mobile navigation">
+        {navItems.map((item) => (
+          <NavLink
+            className={({ isActive }) => `mobile-menu-link ${isActive ? 'active' : ''}`}
+            to={item.to}
+            onClick={closeMenu}
+            key={item.to}
+          >
+            <Icon name={item.icon} size={18} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+        {user ? (
+          <NavLink className={({ isActive }) => `mobile-menu-link ${isActive ? 'active' : ''}`} to={accountPath} onClick={closeMenu}>
+            <Icon name="user" size={18} />
+            <span>{user.email}</span>
+          </NavLink>
+        ) : (
+          <button className="mobile-menu-link" type="button" onClick={() => { closeMenu(); onAccount?.(); }}>
+            <Icon name="user" size={18} />
+            <span>Account</span>
+          </button>
+        )}
+      </nav>
     </header>
   );
 }

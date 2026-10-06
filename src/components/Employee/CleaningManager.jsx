@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { cleaningAppointmentApi } from '../../api/cleaningAppointments.js';
 import { userApi } from '../../api/users.js';
 import {
-  getDateKey,
   getUserEmail,
   getUserFirstName,
   getUserId,
@@ -13,7 +12,6 @@ import { ChangePasswordPanel } from '../Auth/ChangePasswordPanel.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 import { CleaningSchedulePanel } from './CleaningSchedulePanel.jsx';
 
-const DEFAULT_TASKS = ['Kitchen surfaces', 'Bathroom reset', 'Floors', 'Final walkthrough'];
 const DURATION_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
 const REPEAT_INTERVAL_OPTIONS = [1, 2, 3, 4];
 
@@ -59,17 +57,26 @@ function userHasRole(user, expectedRole) {
 
 function getStaffName(staff) {
   const name = [staff?.firstName, staff?.lastName].filter(Boolean).join(' ');
-  return name || staff?.email || 'Unassigned';
+  return name || staff?.displayName || staff?.email || 'Unassigned';
 }
 
-function buildCleaningStaffSummaries(users) {
+function getAssignableRoleLabel(staff) {
+  if (staff?.isManager) return 'Manager';
+  if (staff?.isStaff) return 'Staff';
+  return 'Team';
+}
+
+function buildAssignableCleaningUserSummaries(users) {
   return users
-    .filter((nextUser) => userHasRole(nextUser, 'CLEANING_STAFF'))
+    .filter((nextUser) => userHasRole(nextUser, 'CLEANING_STAFF') || userHasRole(nextUser, 'CLEANING_MANAGER'))
     .map((nextUser) => ({
       id: getUserId(nextUser),
       email: getUserEmail(nextUser),
-      firstName: getUserFirstName(nextUser),
-      lastName: getUserLastName(nextUser),
+      firstName: getUserFirstName(nextUser) || nextUser?.user?.firstName || nextUser?.profile?.firstName || '',
+      lastName: getUserLastName(nextUser) || nextUser?.user?.lastName || nextUser?.profile?.lastName || '',
+      displayName: nextUser?.fullName || nextUser?.displayName || nextUser?.name || nextUser?.userDTO?.name || '',
+      isManager: userHasRole(nextUser, 'CLEANING_MANAGER'),
+      isStaff: userHasRole(nextUser, 'CLEANING_STAFF'),
     }))
     .filter((nextUser) => nextUser.id)
     .sort((a, b) => getStaffName(a).localeCompare(getStaffName(b), 'da'));
@@ -116,10 +123,7 @@ function buildTasksFromText(taskText, existingTasks = []) {
 }
 
 function buildTasksForNewAssignment(taskText) {
-  const tasks = buildTasksFromText(taskText);
-  const sourceTasks = tasks.length ? tasks : buildTasksFromText(DEFAULT_TASKS.join('\n'));
-
-  return sourceTasks.map((task, index) => ({
+  return buildTasksFromText(taskText).map((task, index) => ({
     id: null,
     title: task.title,
     completed: false,
@@ -235,6 +239,13 @@ function formatDuration(minutes) {
   return `${hourLabel} h`;
 }
 
+function isFutureAppointment(appointment) {
+  const appointmentTime = new Date(appointment?.appointmentTime);
+  if (Number.isNaN(appointmentTime.getTime())) return false;
+
+  return appointmentTime >= new Date();
+}
+
 export function CleaningManager({ user, onLogout, onUserUpdated }) {
   const [activeTab, setActiveTab] = useState('schedule');
   const [appointments, setAppointments] = useState([]);
@@ -243,8 +254,7 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
   const [managerError, setManagerError] = useState('');
   const [managerSuccess, setManagerSuccess] = useState('');
   const [selectedProjectKey, setSelectedProjectKey] = useState('');
-  const [appliesFrom, setAppliesFrom] = useState(() => getDateKey(new Date()));
-  const [taskText, setTaskText] = useState(() => DEFAULT_TASKS.join('\n'));
+  const [taskText, setTaskText] = useState('');
   const [assignmentStaffId, setAssignmentStaffId] = useState('');
   const [assignmentStart, setAssignmentStart] = useState(getDefaultAssignmentStart);
   const [assignmentDurationMinutes, setAssignmentDurationMinutes] = useState('120');
@@ -253,7 +263,8 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
   const [savingAction, setSavingAction] = useState('');
   const managerTabs = useMemo(() => ([
     ['schedule', 'Schedule'],
-    ['tasks', 'Add tasks'],
+    ['assignments', 'Add assignment'],
+    ['tasks', 'Edit tasks'],
     ['account', 'Account'],
   ]), []);
   const projects = useMemo(() => buildProjectSummaries(appointments), [appointments]);
@@ -261,7 +272,7 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
     () => projects.find((project) => project.key === selectedProjectKey) || null,
     [projects, selectedProjectKey],
   );
-  const cleaningStaff = useMemo(() => buildCleaningStaffSummaries(users), [users]);
+  const cleaningStaff = useMemo(() => buildAssignableCleaningUserSummaries(users), [users]);
   const projectAppointments = useMemo(() => {
     if (!selectedProject) return [];
 
@@ -269,9 +280,17 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
       .filter((appointment) => appointmentMatchesProject(appointment, selectedProject))
       .sort((a, b) => new Date(a.appointmentTime || 0) - new Date(b.appointmentTime || 0));
   }, [appointments, selectedProject]);
+  const futureProjectAppointments = useMemo(
+    () => projectAppointments.filter(isFutureAppointment),
+    [projectAppointments],
+  );
+  const assignmentTaskPreview = useMemo(
+    () => buildTasksForNewAssignment(taskText),
+    [taskText],
+  );
 
   useEffect(() => {
-    if (activeTab !== 'tasks') return;
+    if (!['assignments', 'tasks'].includes(activeTab)) return;
 
     let ignore = false;
 
@@ -280,6 +299,13 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
       setManagerError('');
 
       try {
+        let syncError = null;
+        try {
+          await cleaningAppointmentApi.syncSheets();
+        } catch (err) {
+          syncError = err;
+        }
+
         const [appointmentData, userData] = await Promise.all([
           cleaningAppointmentApi.getAll(),
           userApi.getAll(),
@@ -289,6 +315,9 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
 
         setAppointments(normalizeListResponse(appointmentData).map(normalizeAppointment));
         setUsers(normalizeListResponse(userData));
+        if (syncError) {
+          setManagerError(syncError.message || 'Could not refresh cleaning appointments from the sheets.');
+        }
       } catch (err) {
         if (!ignore) {
           setManagerError(err.message || 'Could not load cleaning manager data.');
@@ -331,19 +360,16 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
     if (!selectedProject) return;
 
     const timeout = window.setTimeout(() => {
-      const firstFutureAppointment = projectAppointments.find((appointment) => (
-        getDateKey(appointment.appointmentTime) >= appliesFrom
-      ));
-      const templateAppointment = firstFutureAppointment || projectAppointments[0];
+      const templateAppointment = futureProjectAppointments[0] || projectAppointments[0];
       const nextTasks = templateAppointment?.tasks?.length
         ? templateAppointment.tasks
-        : buildTasksFromText(DEFAULT_TASKS.join('\n'));
+        : [];
 
       setTaskText(nextTasks.map((task) => task.title).join('\n'));
     }, 0);
 
     return () => window.clearTimeout(timeout);
-  }, [appliesFrom, projectAppointments, selectedProject]);
+  }, [futureProjectAppointments, projectAppointments, selectedProject]);
 
   useEffect(() => {
     if (assignmentStaffId && !cleaningStaff.some((staff) => String(staff.id) === String(assignmentStaffId))) {
@@ -370,10 +396,22 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
     setManagerError('');
 
     try {
+      let syncError = null;
+      try {
+        await cleaningAppointmentApi.syncSheets();
+      } catch (err) {
+        syncError = err;
+      }
+
       const appointmentData = await cleaningAppointmentApi.getAll();
       const nextAppointments = normalizeListResponse(appointmentData).map(normalizeAppointment);
       setAppointments(nextAppointments);
-      setManagerSuccess(successMessage);
+      if (syncError) {
+        setManagerError(syncError.message || 'Could not refresh cleaning appointments from the sheets.');
+        setManagerSuccess('');
+      } else {
+        setManagerSuccess(successMessage);
+      }
       return nextAppointments;
     } catch (err) {
       setManagerError(err.message || 'Could not refresh cleaning manager data.');
@@ -395,9 +433,7 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
       return;
     }
 
-    const targetAppointment = projectAppointments.find((appointment) => (
-      getDateKey(appointment.appointmentTime) >= appliesFrom
-    ));
+    const targetAppointment = futureProjectAppointments[0];
 
     if (!targetAppointment) {
       setManagerError('Add a future assignment for this project before saving tasks.');
@@ -424,7 +460,7 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
         tasks: buildTasksFromText(taskText, targetAppointment.tasks),
         applyTaskEditsToFutureAssignments: true,
       });
-      await refreshManagerData('Tasks saved for future assignments.');
+      await refreshManagerData('Project tasks saved for future assignments.');
     } catch (err) {
       setManagerError(err.message || 'Could not save project tasks.');
     } finally {
@@ -537,12 +573,166 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
         <CleaningSchedulePanel user={user} managerMode />
       )}
 
+      {activeTab === 'assignments' && (
+        <section className="profile-requests employee-worklogs">
+          <div className="profile-section-head">
+            <div>
+              <div className="section-eyebrow">Assignments</div>
+              <h2>Add assignment</h2>
+            </div>
+            <button className="btn btn-blue" type="button" onClick={() => refreshManagerData()} disabled={managerLoading}>
+              Refresh <Icon name="arrow" size={18} />
+            </button>
+          </div>
+
+          {managerError && <div className="form-error employee-feedback">{managerError}</div>}
+          {managerSuccess && <div className="form-success employee-feedback">{managerSuccess}</div>}
+
+          {managerLoading && !appointments.length && (
+            <div className="profile-empty">Loading cleaning projects...</div>
+          )}
+
+          {!managerLoading && !projects.length && (
+            <div className="profile-empty">No cleaning projects found yet.</div>
+          )}
+
+          {projects.length > 0 && (
+            <form className="profile-panel employee-editor-panel employee-assignment-panel" onSubmit={handleCreateRepeatedAssignments}>
+              <span>Repeated assignments</span>
+              <h2>Add assignment</h2>
+              <div className="field-row">
+                <div className="field">
+                  <label>Cleaning employee</label>
+                  <div className="cleaning-staff-picker" role="radiogroup" aria-label="Cleaning employee">
+                    {!cleaningStaff.length && (
+                      <div className="request-products-state">No cleaning employees available</div>
+                    )}
+                    {cleaningStaff.map((staff) => {
+                      const staffId = String(staff.id);
+                      const isSelected = String(assignmentStaffId) === staffId;
+
+                      return (
+                        <button
+                          className={`cleaning-staff-option ${isSelected ? 'selected' : ''}`}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          key={staff.id}
+                          onClick={() => setAssignmentStaffId(staffId)}
+                        >
+                          <span>{getStaffName(staff)}</span>
+                          <small>{getAssignableRoleLabel(staff)}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Customer project</label>
+                  <select
+                    value={selectedProjectKey}
+                    onChange={(event) => setSelectedProjectKey(event.target.value)}
+                  >
+                    {projects.map((project) => (
+                      <option key={project.key} value={project.key}>
+                        {getProjectLabel(project)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Date</label>
+                  <input
+                    type="datetime-local"
+                    value={assignmentStart}
+                    onChange={(event) => setAssignmentStart(event.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Duration</label>
+                  <select
+                    value={assignmentDurationMinutes}
+                    onChange={(event) => setAssignmentDurationMinutes(event.target.value)}
+                  >
+                    {DURATION_OPTIONS.map((minutes) => (
+                      <option key={minutes} value={minutes}>{formatDuration(minutes)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Repeat every</label>
+                  <select
+                    value={repeatIntervalWeeks}
+                    onChange={(event) => setRepeatIntervalWeeks(event.target.value)}
+                  >
+                    {REPEAT_INTERVAL_OPTIONS.map((weeks) => (
+                      <option key={weeks} value={weeks}>
+                        {weeks} week{weeks === 1 ? '' : 's'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Assignments</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="52"
+                    step="1"
+                    value={repeatCount}
+                    onChange={(event) => setRepeatCount(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label>Tasks</label>
+                <textarea
+                  rows="7"
+                  value={taskText}
+                  onChange={(event) => setTaskText(event.target.value)}
+                />
+              </div>
+
+              <div className="admin-detail-section">
+                <h4>Preview</h4>
+                {assignmentTaskPreview.length === 0 ? (
+                  <div className="request-products-state">This assignment will be created without tasks.</div>
+                ) : (
+                  <ul className="admin-product-list">
+                    {assignmentTaskPreview.map((task) => (
+                      <li key={`${task.sortOrder}-${task.title}`}>
+                        <div>
+                          <strong>{task.title}</strong>
+                        </div>
+                        <span>{task.sortOrder}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="employee-actions">
+                <button
+                  className="btn btn-blue"
+                  type="submit"
+                  disabled={savingAction === 'assignments' || !cleaningStaff.length}
+                >
+                  {savingAction === 'assignments' ? 'Creating...' : 'Create assignments'}
+                  <Icon name="plus" size={18} />
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+      )}
+
       {activeTab === 'tasks' && (
         <section className="profile-requests employee-worklogs">
           <div className="profile-section-head">
             <div>
               <div className="section-eyebrow">Tasks</div>
-              <h2>Add tasks</h2>
+              <h2>Edit tasks</h2>
             </div>
             <button className="btn btn-blue" type="button" onClick={() => refreshManagerData()} disabled={managerLoading}>
               Refresh <Icon name="arrow" size={18} />
@@ -579,14 +769,6 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
                       ))}
                     </select>
                   </div>
-                  <div className="field">
-                    <label>Applies from</label>
-                    <input
-                      type="date"
-                      value={appliesFrom}
-                      onChange={(event) => setAppliesFrom(event.target.value)}
-                    />
-                  </div>
                 </div>
                 <div className="field">
                   <label>Tasks</label>
@@ -604,81 +786,6 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
                   >
                     {savingAction === 'tasks' ? 'Saving...' : 'Save tasks'}
                     <Icon name="check" size={18} />
-                  </button>
-                </div>
-              </form>
-
-              <form className="profile-panel employee-editor-panel employee-assignment-panel" onSubmit={handleCreateRepeatedAssignments}>
-                <span>Repeated assignments</span>
-                <h2>Add assignments</h2>
-                <div className="field-row">
-                  <div className="field">
-                    <label>Cleaning employee</label>
-                    <select
-                      value={assignmentStaffId}
-                      onChange={(event) => setAssignmentStaffId(event.target.value)}
-                      disabled={!cleaningStaff.length}
-                    >
-                      {!cleaningStaff.length && <option value="">No cleaning employees available</option>}
-                      {cleaningStaff.map((staff) => (
-                        <option key={staff.id} value={staff.id}>
-                          {getStaffName(staff)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>First assignment</label>
-                    <input
-                      type="datetime-local"
-                      value={assignmentStart}
-                      onChange={(event) => setAssignmentStart(event.target.value)}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Duration</label>
-                    <select
-                      value={assignmentDurationMinutes}
-                      onChange={(event) => setAssignmentDurationMinutes(event.target.value)}
-                    >
-                      {DURATION_OPTIONS.map((minutes) => (
-                        <option key={minutes} value={minutes}>{formatDuration(minutes)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Repeat every</label>
-                    <select
-                      value={repeatIntervalWeeks}
-                      onChange={(event) => setRepeatIntervalWeeks(event.target.value)}
-                    >
-                      {REPEAT_INTERVAL_OPTIONS.map((weeks) => (
-                        <option key={weeks} value={weeks}>
-                          {weeks} week{weeks === 1 ? '' : 's'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Assignments</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="52"
-                      step="1"
-                      value={repeatCount}
-                      onChange={(event) => setRepeatCount(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="employee-actions">
-                  <button
-                    className="btn btn-blue"
-                    type="submit"
-                    disabled={savingAction === 'assignments' || !cleaningStaff.length}
-                  >
-                    {savingAction === 'assignments' ? 'Creating...' : 'Create assignments'}
-                    <Icon name="plus" size={18} />
                   </button>
                 </div>
               </form>
