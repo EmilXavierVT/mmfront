@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Icon } from '../../Shared/Icon.jsx';
+import { UserEditor } from './UserEditor.jsx';
 import {
   formatDate,
   getStatus,
@@ -25,6 +27,8 @@ export function UsersPanel({
   userSaving,
   customerSearch,
   settingAdminUserId,
+  currentUserId,
+  onSaveUser,
   onRefresh,
   onCreateUser,
   onUpdateUserField,
@@ -37,6 +41,9 @@ export function UsersPanel({
   onMakeEmployee,
   onMakeYouthIsland,
 }) {
+  const [editingUserKey, setEditingUserKey] = useState(null);
+  const userBusy = settingAdminUserId !== null;
+  const editingSelectedUser = selectedCustomer && editingUserKey === selectedCustomer.key;
   const isCleaningClientForm = userForm.role === 'CLEANING_CLIENT';
   const isSubscriberForm = isCleaningClientForm && userForm.cleaningClientType === 'SUBSCRIBER';
 
@@ -62,7 +69,7 @@ export function UsersPanel({
               <div className="section-eyebrow">Users</div>
               <h2>User overview</h2>
             </div>
-            <button className="btn btn-blue" type="button" onClick={onRefresh} disabled={usersLoading}>
+            <button className="btn btn-blue" type="button" onClick={onRefresh} disabled={usersLoading || userBusy}>
               Refresh <Icon name="arrow" size={18} />
             </button>
           </div>
@@ -143,7 +150,7 @@ export function UsersPanel({
                 </div>
               )}
               <div className="admin-product-submit">
-                <button className="btn btn-blue" type="submit" disabled={userSaving}>
+                <button className="btn btn-blue" type="submit" disabled={userSaving || userBusy}>
                   {userSaving ? 'Adding...' : 'Add user'}
                   <Icon name="plus" size={18} />
                 </button>
@@ -169,6 +176,7 @@ export function UsersPanel({
                 <label>Search users</label>
                 <input
                   value={customerSearch}
+                  disabled={userBusy}
                   onChange={event => onSearchChange(event.target.value)}
                   placeholder="Search by name, email, id, or role"
                 />
@@ -189,7 +197,11 @@ export function UsersPanel({
                           className={`admin-request-row ${isSelected ? 'selected' : ''}`}
                           type="button"
                           key={customer.key}
-                          onClick={() => onSelectCustomer(customer.key)}
+                          disabled={userBusy}
+                          onClick={() => {
+                            setEditingUserKey(null);
+                            onSelectCustomer(customer.key);
+                          }}
                         >
                           <span>{customer.role}</span>
                           <strong>{customer.email}</strong>
@@ -204,12 +216,20 @@ export function UsersPanel({
                   <article className="admin-request-detail">
                     {selectedCustomer ? (
                       <>
-                        <div className="admin-detail-head">
+                        <div className="admin-detail-head admin-user-detail-head">
                           <div>
                             <span>User</span>
                             <h3>{selectedCustomer.email}</h3>
                           </div>
                           <div className="admin-detail-actions">
+                            <button
+                              className="btn btn-blue"
+                              type="button"
+                              onClick={() => setEditingUserKey(selectedCustomer.key)}
+                              disabled={!selectedCustomer.id || userBusy || userSaving || editingSelectedUser}
+                            >
+                              Edit user
+                            </button>
                             <div className="admin-status-pill">
                               {selectedCustomerRequestsState.loading
                                 ? 'Loading'
@@ -220,7 +240,7 @@ export function UsersPanel({
                                 className="btn btn-ghost"
                                 type="button"
                                 onClick={() => onMakeEmployee(selectedCustomer)}
-                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                                disabled={!selectedCustomer.id || userBusy || userSaving || editingSelectedUser}
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make employee'}
                                 <Icon name="check" size={18} />
@@ -231,7 +251,7 @@ export function UsersPanel({
                                 className="btn btn-blue"
                                 type="button"
                                 onClick={() => onMakeAdmin(selectedCustomer)}
-                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                                disabled={!selectedCustomer.id || userBusy || userSaving || editingSelectedUser}
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make admin'}
                                 <Icon name="check" size={18} />
@@ -242,7 +262,7 @@ export function UsersPanel({
                                 className="btn btn-ghost"
                                 type="button"
                                 onClick={() => onMakeCleaningClient(selectedCustomer)}
-                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                                disabled={!selectedCustomer.id || userBusy || userSaving || editingSelectedUser}
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make cleaning customer'}
                                 <Icon name="spray" size={18} />
@@ -253,7 +273,7 @@ export function UsersPanel({
                                 className="btn btn-ghost"
                                 type="button"
                                 onClick={() => onMakeCleaningStaff(selectedCustomer)}
-                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                                disabled={!selectedCustomer.id || userBusy || userSaving || editingSelectedUser}
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make cleaning staff'}
                                 <Icon name="spray" size={18} />
@@ -264,7 +284,7 @@ export function UsersPanel({
                                 className="btn btn-ghost"
                                 type="button"
                                 onClick={() => onMakeCleaningManager(selectedCustomer)}
-                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                                disabled={!selectedCustomer.id || userBusy || userSaving || editingSelectedUser}
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Make cleaning manager'}
                                 <Icon name="spray" size={18} />
@@ -275,7 +295,7 @@ export function UsersPanel({
                                 className="btn btn-ghost"
                                 type="button"
                                 onClick={() => onMakeYouthIsland(selectedCustomer)}
-                                disabled={!selectedCustomer.id || settingAdminUserId === selectedCustomer.id}
+                                disabled={!selectedCustomer.id || userBusy || userSaving || editingSelectedUser}
                               >
                                 {settingAdminUserId === selectedCustomer.id ? 'Updating...' : 'Add Ungdomsøen'}
                                 <Icon name="clipboard" size={18} />
@@ -283,6 +303,17 @@ export function UsersPanel({
                             )}
                           </div>
                         </div>
+
+                        {editingSelectedUser && (
+                          <UserEditor
+                            key={selectedCustomer.key}
+                            user={selectedCustomer}
+                            currentUserId={currentUserId}
+                            disabled={userBusy || userSaving}
+                            onSave={payload => onSaveUser(selectedCustomer, payload)}
+                            onCancel={() => setEditingUserKey(null)}
+                          />
+                        )}
 
                         {selectedCustomerRequestsState.error && (
                           <div className="form-error">{selectedCustomerRequestsState.error}</div>
@@ -308,6 +339,22 @@ export function UsersPanel({
                           <div>
                             <dt>Role</dt>
                             <dd>{selectedCustomer.role}</dd>
+                          </div>
+                          <div>
+                            <dt>Phone number</dt>
+                            <dd>{selectedCustomer.raw.phoneNumber || 'Not available'}</dd>
+                          </div>
+                          <div>
+                            <dt>Address</dt>
+                            <dd>{[selectedCustomer.raw.streetName, selectedCustomer.raw.streetNumber].filter(Boolean).join(' ') || 'Not available'}</dd>
+                          </div>
+                          <div>
+                            <dt>Zip code</dt>
+                            <dd>{selectedCustomer.raw.zipCode || 'Not available'}</dd>
+                          </div>
+                          <div>
+                            <dt>Tenant ID</dt>
+                            <dd>{selectedCustomer.raw.tenantId ?? 'Not available'}</dd>
                           </div>
                           <div>
                             <dt>First request</dt>

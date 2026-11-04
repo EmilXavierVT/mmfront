@@ -655,14 +655,7 @@ export function Admin({
     setUserSuccess('');
 
     try {
-      await userApi.setEmployee(selectedUser.id, {
-        ...selectedUser.raw,
-        id: selectedUser.id,
-        email: selectedUser.email,
-        firstName: selectedUser.firstName,
-        lastName: selectedUser.lastName,
-        roles: ['USER', 'EMPLOYEE'],
-      });
+      await userApi.setEmployee(selectedUser.id);
       const refreshedUsers = await userApi.getAll();
       setUsers(Array.isArray(refreshedUsers) ? refreshedUsers : users);
       setSelectedCustomerKey(selectedUser.key);
@@ -774,6 +767,31 @@ export function Admin({
     }
   };
 
+  const saveUser = async (selectedUser, payload) => {
+    setSettingAdminUserId(selectedUser.id);
+    setUserError('');
+    setUserSuccess('');
+
+    try {
+      const updatedUser = await userApi.update(selectedUser.id, payload);
+      setUsers(current => current.map(account => (
+        String(getUserId(account)) === String(selectedUser.id) ? updatedUser : account
+      )));
+      setSelectedCustomerKey(getUserKey(updatedUser));
+      setCustomerSearch('');
+      resetCustomerRequestStates();
+      setUserSuccess(`${updatedUser.email} was updated.${payload.password ? ' Password changed.' : ''}`);
+
+      const ownAccount = String(user?.id || user?.userId) === String(selectedUser.id);
+      const rolesChanged = [...(selectedUser.raw.roles || [])].sort().join(',')
+        !== [...(updatedUser.roles || [])].sort().join(',');
+      const tenantChanged = selectedUser.raw.tenantId !== updatedUser.tenantId;
+      if (ownAccount && (user.email !== updatedUser.email || rolesChanged || tenantChanged)) onLogout();
+    } finally {
+      setSettingAdminUserId(null);
+    }
+  };
+
   const moveCalendarMonth = (direction) => {
     setCalendarCursor(current => {
       const base = current || displayedCalendarCursor;
@@ -857,6 +875,8 @@ export function Admin({
           userSaving={userSaving}
           customerSearch={customerSearch}
           settingAdminUserId={settingAdminUserId}
+          currentUserId={user?.id || user?.userId}
+          onSaveUser={saveUser}
           onRefresh={refreshCustomers}
           onCreateUser={createUser}
           onUpdateUserField={updateUserField}

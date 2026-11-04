@@ -14,9 +14,8 @@ export const userApi = {
   setAdmin: (id) => apiRequest(`/user/${id}/admin`, {
     method: 'PUT',
   }),
-  setEmployee: (id, user) => apiRequest(`/user/${id}`, {
+  setEmployee: (id) => apiRequest(`/user/${id}/employee`, {
     method: 'PUT',
-    body: JSON.stringify(user),
   }),
   setCleaningClient: (id) => apiRequest(`/user/${id}/cleaning-client`, {
     method: 'PUT',
