@@ -197,6 +197,13 @@
   padding: 11px 15px;
 }
 
+.youth-service-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .youth-service-list {
   display: grid;
   gap: 10px;

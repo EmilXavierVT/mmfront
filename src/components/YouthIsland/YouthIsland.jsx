@@ -5,14 +5,30 @@ import { youthIslandBookingApi } from '../../api/youthIslandBookings.js';
 import { Icon } from '../Shared/Icon.jsx';
 import './YouthIsland.css';
 
-const emptyItem = () => ({
+const DIVERSE_PRODUCT_NUMBER = 'DIVERSE';
+
+const emptyItem = (overrides = {}) => ({
   guestCount: '',
   servingTime: '',
   productNumber: '',
   productName: '',
+  unitPriceOverride: '',
   menu: '',
   room: '',
+  ...overrides,
 });
+
+const isSpecialItem = item => String(item?.productNumber || '').trim().toUpperCase() === DIVERSE_PRODUCT_NUMBER;
+
+function formatPrice(value) {
+  const price = Number(value);
+  if (!Number.isFinite(price)) return '';
+  return new Intl.NumberFormat('da-DK', {
+    style: 'currency',
+    currency: 'DKK',
+    minimumFractionDigits: 2,
+  }).format(price);
+}
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -139,6 +155,7 @@ function bookingToForm(booking) {
         servingTime: String(item.servingTime || '').slice(0, 5),
         productNumber: item.productNumber || '',
         productName: item.productName || '',
+        unitPriceOverride: item.unitPriceOverride == null ? '' : String(item.unitPriceOverride),
         menu: item.menu || '',
         room: item.room || '',
       }))
@@ -172,6 +189,7 @@ function buildBookingDocument(form, user) {
       `   Tid: ${formatTime(item.servingTime)}`,
       `   Lokale: ${item.room || 'Ikke angivet'}`,
       `   Menu: ${item.menu || 'Ikke angivet'}`,
+      ...(isSpecialItem(item) ? [`   Pris pr. person: ${formatPrice(item.unitPriceOverride)}`] : []),
     ]),
     '',
     'ALLERGENER',
@@ -216,6 +234,13 @@ export function YouthIsland({ user }) {
       .filter(product => product.economicProductNumber)
       .filter(product => getProductYear(product) === 2026)
       .sort((a, b) => a.name.localeCompare(b.name, 'da')),
+    [products],
+  );
+
+  const diverseProduct = useMemo(
+    () => products
+      .map(normalizeProduct)
+      .find(product => String(product.economicProductNumber || '').trim().toUpperCase() === DIVERSE_PRODUCT_NUMBER),
     [products],
   );
 
@@ -351,6 +376,7 @@ export function YouthIsland({ user }) {
             ...item,
             productNumber,
             productName: product?.name || '',
+            unitPriceOverride: '',
             menu: product?.name || item.menu,
           }
           : item
@@ -360,6 +386,27 @@ export function YouthIsland({ user }) {
 
   const addItem = () => {
     setForm(current => ({ ...current, items: [...current.items, emptyItem()] }));
+  };
+
+  const addSpecialItem = () => {
+    if (!diverseProduct) {
+      setError('Produktet DIVERSE kunne ikke findes i e-conomic. Opdater produktlisten og prøv igen.');
+      return;
+    }
+    setError('');
+    setForm(current => ({
+      ...current,
+      items: [...current.items, emptyItem({ productNumber: diverseProduct.economicProductNumber })],
+    }));
+  };
+
+  const updateSpecialItemName = (index, value) => {
+    setForm(current => ({
+      ...current,
+      items: current.items.map((item, itemIndex) => (
+        itemIndex === index ? { ...item, productName: value, menu: value } : item
+      )),
+    }));
   };
 
   const removeItem = (index) => {
@@ -413,8 +460,11 @@ export function YouthIsland({ user }) {
       || !item.servingTime
       || !item.productNumber
       || !item.productName
-      || !item.menu.trim()
-      || !item.room.trim()
+      || (isSpecialItem(item) && (
+        item.unitPriceOverride === ''
+        || !Number.isFinite(Number(item.unitPriceOverride))
+        || Number(item.unitPriceOverride) < 0
+      ))
     ));
 
     if (!form.customerName.trim() || !form.startDateTime || !form.endDateTime || !form.spectraReservationNumber.trim()) {
@@ -430,7 +480,7 @@ export function YouthIsland({ user }) {
     }
 
     if (invalidItem) {
-      setError('Hver servering skal have antal, tidspunkt, e-conomic produkt, menu og lokale.');
+      setError('Hver servering skal have antal, tidspunkt og et produkt eller specialnavn med pris.');
       return;
     }
 
@@ -452,8 +502,9 @@ export function YouthIsland({ user }) {
           servingTime: normalizeTime(item.servingTime),
           productNumber: item.productNumber,
           productName: item.productName,
-          menu: item.menu.trim(),
-          room: item.room.trim(),
+          unitPriceOverride: isSpecialItem(item) ? Number(item.unitPriceOverride) : null,
+          menu: item.menu.trim() || null,
+          room: item.room.trim() || null,
         })),
       };
       const saved = editingId
@@ -600,10 +651,21 @@ export function YouthIsland({ user }) {
                 <span>Forplejning</span>
                 <h3>Bestilling</h3>
               </div>
-              <button className="btn btn-cream" type="button" onClick={addItem}>
-                <Icon name="plus" size={17} />
-                Tilføj servering
-              </button>
+              <div className="youth-service-actions">
+                <button className="btn btn-cream" type="button" onClick={addItem}>
+                  <Icon name="plus" size={17} />
+                  Tilføj servering
+                </button>
+                <button
+                  className="btn btn-cream"
+                  type="button"
+                  onClick={addSpecialItem}
+                  disabled={productsLoading || !diverseProduct}
+                >
+                  <Icon name="plus" size={17} />
+                  Tilføj en speciel servering
+                </button>
+              </div>
             </div>
 
             <div className="youth-service-list">
@@ -633,42 +695,73 @@ export function YouthIsland({ user }) {
                     />
                   </div>
                   <div className="field youth-service-product">
-                    <label htmlFor={`youth-product-${index}`}>e-conomic produkt</label>
-                    <select
-                      id={`youth-product-${index}`}
-                      value={item.productNumber}
-                      onChange={event => updateItemProduct(index, event.target.value)}
-                      disabled={productsLoading || productOptions.length === 0}
-                      required
-                    >
-                      <option value="">
-                        {productsLoading ? 'Henter produkter...' : 'Vælg produkt'}
-                      </option>
-                      {productOptions.map(product => (
-                        <option key={product.economicProductNumber} value={product.economicProductNumber}>
-                          {productOptionLabel(product)}
-                        </option>
-                      ))}
-                    </select>
+                    {isSpecialItem(item) ? (
+                      <>
+                        <label htmlFor={`youth-special-name-${index}`}>Navn</label>
+                        <input
+                          id={`youth-special-name-${index}`}
+                          value={item.productName}
+                          onChange={event => updateSpecialItemName(index, event.target.value)}
+                          placeholder="Speciel servering"
+                          required
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <label htmlFor={`youth-product-${index}`}>e-conomic produkt</label>
+                        <select
+                          id={`youth-product-${index}`}
+                          value={item.productNumber}
+                          onChange={event => updateItemProduct(index, event.target.value)}
+                          disabled={productsLoading || productOptions.length === 0}
+                          required
+                        >
+                          <option value="">
+                            {productsLoading ? 'Henter produkter...' : 'Vælg produkt'}
+                          </option>
+                          {productOptions.map(product => (
+                            <option key={product.economicProductNumber} value={product.economicProductNumber}>
+                              {productOptionLabel(product)}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
                   </div>
                   <div className="field youth-service-menu">
-                    <label htmlFor={`youth-menu-${index}`}>Menu</label>
-                    <input
-                      id={`youth-menu-${index}`}
-                      value={item.menu}
-                      onChange={event => updateItem(index, 'menu', event.target.value)}
-                      placeholder="Vegetarisk hovedret med brød"
-                      required
-                    />
+                    {isSpecialItem(item) ? (
+                      <>
+                        <label htmlFor={`youth-special-price-${index}`}>Pris pr. person, ekskl. moms</label>
+                        <input
+                          id={`youth-special-price-${index}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.unitPriceOverride}
+                          onChange={event => updateItem(index, 'unitPriceOverride', event.target.value)}
+                          placeholder="0,00"
+                          required
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <label htmlFor={`youth-menu-${index}`}>Menu (valgfri)</label>
+                        <input
+                          id={`youth-menu-${index}`}
+                          value={item.menu}
+                          onChange={event => updateItem(index, 'menu', event.target.value)}
+                          placeholder="Vegetarisk hovedret med brød"
+                        />
+                      </>
+                    )}
                   </div>
                   <div className="field">
-                    <label htmlFor={`youth-room-${index}`}>Lokale</label>
+                    <label htmlFor={`youth-room-${index}`}>Lokale (valgfri)</label>
                     <input
                       id={`youth-room-${index}`}
                       value={item.room}
                       onChange={event => updateItem(index, 'room', event.target.value)}
                       placeholder="Artilleri"
-                      required
                     />
                   </div>
                   <button
@@ -761,7 +854,8 @@ export function YouthIsland({ user }) {
                   <div key={`preview-${index}`}>
                     <strong>{item.productName || item.menu || `Servering ${index + 1}`}</strong>
                     <span>{item.guestCount || 0} personer · {formatTime(item.servingTime)} · {item.room || 'Lokale ikke angivet'}</span>
-                    {item.menu && <p>{item.menu}</p>}
+                    {isSpecialItem(item) && item.unitPriceOverride !== '' && <p>{formatPrice(item.unitPriceOverride)} pr. person</p>}
+                    {!isSpecialItem(item) && item.menu && <p>{item.menu}</p>}
                   </div>
                 ))}
               </div>
