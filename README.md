@@ -42,6 +42,18 @@ npm run lint
 - `npm run build` creates a production build
 - `npm run preview` previews the build locally
 - `npm run lint` checks the code with ESLint
+- `npm test` checks product search, serving dates, and the order-sheet data
+
+The Ungdomsøen booking editor supports typed product searches, new serving rows at
+the top, and date/time pickers with a separate calendar button. Its order preview
+and PDF download use a two-column booking form with servings grouped by date.
+PDF generation and its embedded Danish-capable font are loaded when downloading.
+
+Booking history shows the person, date/time, and before/after values for each edit,
+including serving additions and removals. Complete previous versions can also be
+viewed. Older entries that contain only the person and time are labelled as such.
+If another person has saved since a booking was opened, the editor keeps the typed
+changes and offers to load the newest version before saving again.
 
 ## Docker
 

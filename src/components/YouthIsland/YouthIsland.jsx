@@ -2,11 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { productApi } from '../../api/products.js';
 import { getProductYear, normalizeProduct } from '../../lib/products.js';
 import { findSpecialServingProduct, getServingDateTime, isSpecialServing as isSpecialItem } from '../../lib/youthIsland.js';
+import { buildYouthOrderSheet, youthOrderFilename } from '../../lib/youthIslandOrder.js';
 import { youthIslandBookingApi } from '../../api/youthIslandBookings.js';
 import { Icon } from '../Shared/Icon.jsx';
+import { DateTimeInput } from './DateTimeInput.jsx';
+import { BookingHistory } from './BookingHistory.jsx';
+import { ProductPicker } from './ProductPicker.jsx';
+import { YouthOrderSheet } from './YouthOrderSheet.jsx';
 import './YouthIsland.css';
 
 const emptyItem = (overrides = {}) => ({
+  clientId: crypto.randomUUID(),
   guestCount: '',
   servingDateTime: '',
   productNumber: '',
@@ -16,16 +22,6 @@ const emptyItem = (overrides = {}) => ({
   room: '',
   ...overrides,
 });
-
-function formatPrice(value) {
-  const price = Number(value);
-  if (!Number.isFinite(price)) return '';
-  return new Intl.NumberFormat('da-DK', {
-    style: 'currency',
-    currency: 'DKK',
-    minimumFractionDigits: 2,
-  }).format(price);
-}
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -137,6 +133,7 @@ function bookingToForm(booking) {
   const startDateTime = getBookingStartDateTime(booking);
 
   return {
+    version: booking.version,
     customerName: booking.customerName || '',
     eventDate: getBookingDate(booking),
     startDateTime: toDateTimeInput(startDateTime),
@@ -148,7 +145,7 @@ function bookingToForm(booking) {
     snackTrayCount: String(booking.snackTrayCount || 0),
     orderDate: booking.orderDate || today(),
     items: (booking.items || []).length > 0
-      ? booking.items.map(item => ({
+      ? booking.items.map(item => emptyItem({
         id: item.id,
         guestCount: String(item.guestCount || ''),
         servingDateTime: toDateTimeInput(getServingDateTime(item, booking)),
@@ -162,58 +159,6 @@ function bookingToForm(booking) {
   };
 }
 
-function productOptionLabel(product) {
-  return product.name;
-}
-
-function buildBookingDocument(form, user) {
-  const lines = [
-    'UNGDOMSOEN BESTILLING',
-    '',
-    `Arrangement: ${form.customerName || 'Ikke angivet'}`,
-    `Start: ${formatDateTime(form.startDateTime)}`,
-    `Slut: ${formatDateTime(form.endDateTime)}`,
-    `Varighed: ${formatDuration(form.startDateTime, form.endDateTime)}`,
-    `Bestillingsdato: ${formatDate(form.orderDate)}`,
-    `Spectra reservationsnummer: ${form.spectraReservationNumber || 'Ikke angivet'}`,
-    `Lokale eller omraade: ${form.location || 'Ikke angivet'}`,
-    `Bestilles af: ${user?.email || 'Ikke angivet'}`,
-    `Snackfade: ${Number(form.snackTrayCount) || 0}`,
-    '',
-    'FORPLEJNING',
-    ...form.items.flatMap((item, index) => [
-      '',
-      `${index + 1}. ${item.productName || item.menu || 'Servering'}`,
-      `   Antal: ${item.guestCount || 0}`,
-      `   Dato og tid: ${formatDateTime(item.servingDateTime)}`,
-      `   Lokale: ${item.room || 'Ikke angivet'}`,
-      `   Menu: ${item.menu || 'Ikke angivet'}`,
-      ...(isSpecialItem(item) ? [`   Pris pr. person: ${formatPrice(item.unitPriceOverride)}`] : []),
-    ]),
-    '',
-    'ALLERGENER',
-    form.allergies || 'Ingen angivet',
-    '',
-    'ANDET',
-    form.notes || 'Intet angivet',
-  ];
-
-  return lines.join('\n');
-}
-
-function buildDownloadName(form) {
-  const rawName = [
-    form.startDateTime?.slice(0, 10) || form.eventDate || today(),
-    form.customerName || 'ungdomsoen-bestilling',
-  ].join('-');
-  const safeName = rawName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  return `${safeName || 'ungdomsoen-bestilling'}.txt`;
-}
-
 export function YouthIsland({ user }) {
   const [form, setForm] = useState(initialForm);
   const [bookings, setBookings] = useState([]);
@@ -223,6 +168,8 @@ export function YouthIsland({ user }) {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [conflict, setConflict] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activePageTab, setActivePageTab] = useState(PAGE_TABS.create);
@@ -241,14 +188,16 @@ export function YouthIsland({ user }) {
     [products],
   );
 
-  const bookingDocumentText = useMemo(
-    () => buildBookingDocument(form, user),
-    [form, user],
-  );
-
   const editingBooking = useMemo(
     () => bookings.find(booking => booking.id === editingId) || null,
     [bookings, editingId],
+  );
+
+  const orderSheet = useMemo(
+    () => buildYouthOrderSheet(form, editingBooking
+      ? { name: editingBooking.orderedByName, email: editingBooking.orderedByEmail }
+      : user),
+    [form, user, editingBooking],
   );
 
   const earlierBookings = useMemo(
@@ -388,7 +337,7 @@ export function YouthIsland({ user }) {
   };
 
   const addItem = () => {
-    setForm(current => ({ ...current, items: [...current.items, emptyItem({ servingDateTime: current.startDateTime })] }));
+    setForm(current => ({ ...current, items: [emptyItem({ servingDateTime: current.startDateTime, autoFocus: true }), ...current.items] }));
   };
 
   const addSpecialItem = () => {
@@ -399,7 +348,7 @@ export function YouthIsland({ user }) {
     setError('');
     setForm(current => ({
       ...current,
-      items: [...current.items, emptyItem({ productNumber: diverseProduct.economicProductNumber, servingDateTime: current.startDateTime })],
+      items: [emptyItem({ productNumber: diverseProduct.economicProductNumber, servingDateTime: current.startDateTime, autoFocus: true }), ...current.items],
     }));
   };
 
@@ -427,6 +376,7 @@ export function YouthIsland({ user }) {
     setActivePageTab(PAGE_TABS.create);
     setError('');
     setSuccess('');
+    setConflict(false);
   };
 
   const cancelEdit = () => {
@@ -434,18 +384,36 @@ export function YouthIsland({ user }) {
     setForm(initialForm());
     setError('');
     setSuccess('');
+    setConflict(false);
   };
 
-  const downloadBookingDocument = () => {
-    const blob = new Blob([bookingDocumentText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildDownloadName(form);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+  const reloadEditingBooking = async () => {
+    if (!editingId) return;
+    setSaving(true);
+    try {
+      const latest = await youthIslandBookingApi.getById(editingId);
+      setBookings(current => current.map(booking => booking.id === latest.id ? latest : booking));
+      setForm(bookingToForm(latest));
+      setConflict(false);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Bestillingen kunne ikke genindlæses.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const downloadBookingDocument = async () => {
+    setDownloading(true);
+    setError('');
+    try {
+      const { downloadYouthOrderPdf } = await import('../../lib/youthIslandPdf.js');
+      await downloadYouthOrderPdf(orderSheet, youthOrderFilename(form));
+    } catch (err) {
+      setError(err.message || 'PDF-filen kunne ikke oprettes. Prøv igen.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const selectPageTab = (tab) => {
@@ -492,6 +460,7 @@ export function YouthIsland({ user }) {
     try {
       const payload = {
         ...form,
+        version: form.version,
         customerName: form.customerName.trim(),
         eventDate: form.startDateTime.slice(0, 10),
         startDateTime: normalizeDateTime(form.startDateTime),
@@ -502,6 +471,7 @@ export function YouthIsland({ user }) {
         notes: form.notes.trim() || null,
         snackTrayCount: Number(form.snackTrayCount) || 0,
         items: form.items.map(item => ({
+          id: item.id,
           guestCount: Number(item.guestCount),
           servingDateTime: normalizeDateTime(item.servingDateTime),
           servingTime: normalizeDateTime(item.servingDateTime).slice(11),
@@ -524,7 +494,10 @@ export function YouthIsland({ user }) {
       setEditingId(null);
       setSuccess(`Bestilling #${saved.id} er ${editingId ? 'opdateret' : 'gemt'}.`);
     } catch (err) {
-      setError(err.message || 'Bestillingen kunne ikke gemmes.');
+      setConflict(err.status === 409);
+      setError(err.status === 409
+        ? 'En anden person har gemt en nyere version. Dine ændringer står stadig i formularen. Hent nyeste version for at fortsætte; det erstatter dine ikke-gemte ændringer.'
+        : err.message || 'Bestillingen kunne ikke gemmes.');
     } finally {
       setSaving(false);
     }
@@ -577,7 +550,9 @@ export function YouthIsland({ user }) {
           </div>
 
           {error && <div className="form-error">{error}</div>}
+          {conflict && <button className="btn btn-cream" type="button" onClick={reloadEditingBooking} disabled={saving}>Hent nyeste version</button>}
           {success && <div className="form-success">{success}</div>}
+          {editingBooking && <BookingHistory key={`${editingBooking.id}-${editingBooking.version}`} booking={editingBooking} />}
           {productsError && (
             <div className="form-error">
               {productsError}
@@ -598,23 +573,23 @@ export function YouthIsland({ user }) {
                 required
               />
             </div>
-            <div className="field">
+            <div className="field youth-field-wide youth-datetime-field">
               <label htmlFor="youth-start-date-time">Start</label>
-              <input
+              <DateTimeInput
                 id="youth-start-date-time"
-                type="datetime-local"
+                label="Startdato og tid"
                 value={form.startDateTime}
-                onChange={event => updateStartDateTime(event.target.value)}
+                onChange={updateStartDateTime}
                 required
               />
             </div>
-            <div className="field">
+            <div className="field youth-field-wide youth-datetime-field">
               <label htmlFor="youth-end-date-time">Slut</label>
-              <input
+              <DateTimeInput
                 id="youth-end-date-time"
-                type="datetime-local"
+                label="Slutdato og tid"
                 value={form.endDateTime}
-                onChange={event => updateField('endDateTime', event.target.value)}
+                onChange={value => updateField('endDateTime', value)}
                 required
               />
             </div>
@@ -683,7 +658,7 @@ export function YouthIsland({ user }) {
 
             <div className="youth-service-list">
               {form.items.map((item, index) => (
-                <div className="youth-service-row" key={`service-${index}`}>
+                <div className="youth-service-row" key={item.clientId}>
                   <div className="youth-service-number">{index + 1}</div>
                   <div className="field">
                     <label htmlFor={`youth-guests-${index}`}>Antal</label>
@@ -692,6 +667,7 @@ export function YouthIsland({ user }) {
                       type="number"
                       min="1"
                       step="1"
+                      autoFocus={item.autoFocus}
                       value={item.guestCount}
                       onChange={event => updateItem(index, 'guestCount', event.target.value)}
                       required
@@ -699,11 +675,11 @@ export function YouthIsland({ user }) {
                   </div>
                   <div className="field youth-service-datetime">
                     <label htmlFor={`youth-time-${index}`}>Dato og tid</label>
-                    <input
+                    <DateTimeInput
                       id={`youth-time-${index}`}
-                      type="datetime-local"
+                      label={`Servering ${index + 1}, dato og tid`}
                       value={item.servingDateTime}
-                      onChange={event => updateItem(index, 'servingDateTime', event.target.value)}
+                      onChange={value => updateItem(index, 'servingDateTime', value)}
                       required
                     />
                   </div>
@@ -720,25 +696,14 @@ export function YouthIsland({ user }) {
                         />
                       </>
                     ) : (
-                      <>
-                        <label htmlFor={`youth-product-${index}`}>e-conomic produkt</label>
-                        <select
-                          id={`youth-product-${index}`}
-                          value={item.productNumber}
-                          onChange={event => updateItemProduct(index, event.target.value)}
-                          disabled={productsLoading || productOptions.length === 0}
-                          required
-                        >
-                          <option value="">
-                            {productsLoading ? 'Henter produkter...' : 'Vælg produkt'}
-                          </option>
-                          {productOptions.map(product => (
-                            <option key={product.economicProductNumber} value={product.economicProductNumber}>
-                              {productOptionLabel(product)}
-                            </option>
-                          ))}
-                        </select>
-                      </>
+                      <ProductPicker
+                        id={`youth-product-${index}`}
+                        products={productOptions}
+                        value={item.productNumber}
+                        selectedName={item.productName}
+                        onChange={value => updateItemProduct(index, value)}
+                        disabled={productsLoading || productOptions.length === 0}
+                      />
                     )}
                   </div>
                   <div className="field youth-service-menu">
@@ -838,57 +803,15 @@ export function YouthIsland({ user }) {
           <div className="youth-preview-head">
             <div>
               <span>Dokument</span>
-              <h2>Preview</h2>
+              <h2>Bestillingsformular</h2>
             </div>
-            <button className="btn btn-cream" type="button" onClick={downloadBookingDocument}>
+            <button className="btn btn-cream" type="button" onClick={downloadBookingDocument} disabled={downloading}>
               <Icon name="download" size={17} />
-              Download
+              {downloading ? 'Opretter PDF...' : 'Download PDF'}
             </button>
           </div>
 
-          <div className="youth-document">
-            <div className="youth-document-top">
-              <span>Ungdomsøen</span>
-              <strong>Bestilling</strong>
-            </div>
-            <h3>{form.customerName || 'Ny bestilling'}</h3>
-            <dl className="youth-document-meta">
-              <div><dt>Start</dt><dd>{formatDateTime(form.startDateTime)}</dd></div>
-              <div><dt>Slut</dt><dd>{formatDateTime(form.endDateTime)}</dd></div>
-              <div><dt>Varighed</dt><dd>{formatDuration(form.startDateTime, form.endDateTime)}</dd></div>
-              <div><dt>Spectra</dt><dd>{form.spectraReservationNumber || 'Ikke angivet'}</dd></div>
-              <div><dt>Lokale</dt><dd>{form.location || 'Ikke angivet'}</dd></div>
-            </dl>
-
-            <div className="youth-document-section">
-              <h4>Forplejning</h4>
-              <div className="youth-document-lines">
-                {form.items.map((item, index) => (
-                  <div key={`preview-${index}`}>
-                    <strong>{item.productName || item.menu || `Servering ${index + 1}`}</strong>
-                    <span>{item.guestCount || 0} personer · {formatDateTime(item.servingDateTime)} · {item.room || 'Lokale ikke angivet'}</span>
-                    {isSpecialItem(item) && item.unitPriceOverride !== '' && <p>{formatPrice(item.unitPriceOverride)} pr. person</p>}
-                    {!isSpecialItem(item) && item.menu && <p>{item.menu}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="youth-document-section">
-              <h4>Allergener</h4>
-              <p>{form.allergies || 'Ingen angivet'}</p>
-            </div>
-
-            <div className="youth-document-section">
-              <h4>Andet</h4>
-              <p>{form.notes || 'Intet angivet'}</p>
-            </div>
-
-            <div className="youth-document-footer">
-              <span>Bestilt af</span>
-              <strong>{user?.email || 'Ikke angivet'}</strong>
-            </div>
-          </div>
+          <YouthOrderSheet sheet={orderSheet} />
         </aside>
       </section>
       )}
@@ -926,6 +849,7 @@ export function YouthIsland({ user }) {
                   <Icon name="edit" size={16} />
                   Rediger
                 </button>
+                <BookingHistory key={`${booking.id}-${booking.version}`} booking={booking} />
               </article>
             ))}
           </div>
@@ -992,19 +916,7 @@ export function YouthIsland({ user }) {
                       </div>
                     ))}
                   </div>
-                  {(booking.editHistory || []).length > 0 && (
-                    <div className="youth-edit-history">
-                      <h4>Redigeringshistorik</h4>
-                      <ol>
-                        {booking.editHistory.map(edit => (
-                          <li key={edit.id}>
-                            <strong>{formatEditor(edit)}</strong>
-                            <span>{formatDateTime(edit.editedAt)}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
+                  <BookingHistory key={`${booking.id}-${booking.version}`} booking={booking} />
                   <div className="youth-history-actions">
                     <button className="btn btn-cream" type="button" onClick={() => startEdit(booking)}>
                       <Icon name="edit" size={17} />

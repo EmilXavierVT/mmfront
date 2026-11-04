@@ -225,13 +225,156 @@
   margin: 0;
 }
 
-.youth-service-row .youth-service-datetime { grid-column: 3; }
+.youth-service-row .youth-service-datetime { grid-column: 2 / span 2; }
 
 .youth-service-product,
 .youth-service-menu,
 .youth-service-row .field:last-of-type { grid-column: 2 / span 2; }
 
 .youth-remove-service { grid-column: 4; grid-row: 1; }
+
+.youth-datetime-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.youth-booking-form .youth-datetime-control input {
+  min-width: 0;
+  width: 100%;
+  padding-inline: 10px;
+  font-size: 14px;
+}
+
+.youth-datetime-control input::-webkit-calendar-picker-indicator { display: none; }
+
+.youth-datetime-picker {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 42px;
+  border: 1px solid var(--soft-border);
+  border-radius: 7px;
+  background: var(--cream);
+  color: var(--ink);
+}
+
+.youth-datetime-picker:hover { background: var(--cream-2); }
+
+.youth-product-options {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 4px;
+  max-height: 230px;
+  overflow-y: auto;
+  border: 1px solid var(--soft-border);
+  border-radius: 7px;
+  background: var(--white);
+}
+
+.youth-product-options button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 4px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.youth-product-options button[aria-selected="true"],
+.youth-product-options button:hover { background: var(--cream); }
+
+.youth-product-options small { flex-shrink: 0; opacity: 0.65; }
+
+.youth-product-no-results { padding: 12px; font-size: 13px; }
+
+.youth-order-sheet {
+  padding: 28px 18px;
+  background: #fff;
+  color: #111;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+}
+
+.youth-order-sheet h3 {
+  margin: 0 0 28px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.youth-order-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+
+.youth-order-table th,
+.youth-order-table td {
+  width: 50%;
+  padding: 8px;
+  border: 1px solid #111;
+  color: #111;
+  background: #fff;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.youth-order-footer { margin-top: 24px; }
+
+.youth-order-footer p { margin: 0 0 12px; line-height: 1.45; overflow-wrap: anywhere; }
+
+.youth-booking-audit {
+  grid-column: 1 / -1;
+  margin: 16px 0;
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+}
+
+.youth-booking-audit > summary,
+.youth-audit-entry > summary,
+.youth-audit-snapshot > summary { padding: 14px; cursor: pointer; font-weight: 700; }
+
+.youth-audit-content { padding: 0 14px 14px; }
+
+.youth-audit-entry { margin-top: 12px; border: 1px solid var(--soft-border); border-radius: 6px; }
+
+.youth-audit-entry > summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; background: var(--cream); }
+
+.youth-audit-entry > summary time,
+.youth-audit-person { font-size: 12px; font-weight: 400; }
+
+.youth-audit-entry-body { padding: 12px; }
+
+.youth-audit-entry-body p { font-size: 13px; line-height: 1.5; }
+
+.youth-audit-table-wrap { overflow-x: auto; }
+
+.youth-audit-table { border-collapse: collapse; table-layout: fixed; width: 100%; font-size: 12px; }
+
+.youth-audit-table th,
+.youth-audit-table td { padding: 10px; border: 1px solid var(--soft-border); vertical-align: top; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.youth-audit-table th { background: var(--cream); }
+
+.youth-audit-table small { display: block; margin-top: 5px; font-weight: 400; line-height: 1.4; }
+
+.youth-audit-snapshot { margin-top: 12px; }
+
+@media (max-width: 400px) {
+  .youth-datetime-control { display: block; position: relative; }
+  .youth-datetime-picker { position: absolute; right: 0; bottom: calc(100% + 4px); width: 28px; height: 26px; }
+  .youth-datetime-field > label,
+  .youth-service-datetime > label { min-height: 26px; padding-right: 34px; }
+}
 
 .youth-service-product select {
   min-width: 0;

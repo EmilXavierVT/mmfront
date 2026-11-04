@@ -1,5 +1,18 @@
 const SPECIAL_PRODUCT_NUMBERS = new Set(['1019', 'DIVERSE']);
 
+function searchText(value) {
+  return String(value || '').toLocaleLowerCase('da').normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .replace(/ø/g, 'o').replace(/æ/g, 'ae');
+}
+
+export function searchYouthProducts(products, query) {
+  const terms = searchText(query).trim().split(/\s+/).filter(Boolean);
+  return products.filter(product => {
+    const text = searchText(`${product.name} ${product.economicProductNumber}`);
+    return terms.every(term => text.includes(term));
+  });
+}
+
 export function isSpecialServing(item) {
   return SPECIAL_PRODUCT_NUMBERS.has(String(item?.productNumber || '').trim().toUpperCase());
 }

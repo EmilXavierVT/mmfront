@@ -3,6 +3,7 @@ import { apiRequest } from './client.js';
 export const youthIslandBookingApi = {
   getAll: () => apiRequest('/youth-island-booking/all'),
   getById: (id) => apiRequest(`/youth-island-booking/${id}`),
+  getHistory: (id) => apiRequest(`/youth-island-booking/${id}/history`),
   create: (booking) => apiRequest('/youth-island-booking/', {
     method: 'POST',
     body: JSON.stringify(booking),
