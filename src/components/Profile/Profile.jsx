@@ -119,11 +119,56 @@ function StandardProfile({ user, onBook, onLogout, onUserUpdated }) {
   );
 }
 
-export function Profile({ user, onBook, onLogout, onUserUpdated }) {
+function YouthIslandProfile({ user, onLogout, onUserUpdated, onYouthIsland }) {
+  return (
+    <main className="profile-page">
+      <section className="profile-hero">
+        <div>
+          <div className="section-eyebrow">Ungdomsøen</div>
+          <h1>Din profil</h1>
+          <p>{user?.email}</p>
+        </div>
+        <button className="btn btn-cream" type="button" onClick={onLogout}>
+          Log ud <Icon name="logout" size={18} />
+        </button>
+      </section>
+
+      <section className="profile-grid">
+        <AccountDetailsPanel user={user} onUserUpdated={onUserUpdated} />
+
+        <div className="profile-panel accent">
+          <span>Bestillinger</span>
+          <h2>Ungdomsøen</h2>
+          <p>Opret en ny bestilling, eller se alle tidligere og kommende bestillinger fra Ungdomsøen.</p>
+          <button className="btn btn-primary" type="button" onClick={onYouthIsland}>
+            Gå til bestillinger <Icon name="arrow" size={18} />
+          </button>
+        </div>
+      </section>
+
+      <section className="profile-grid profile-account-grid">
+        <ChangePasswordPanel />
+      </section>
+    </main>
+  );
+}
+
+export function Profile({ user, onBook, onLogout, onUserUpdated, onYouthIsland }) {
   const userRoles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
     .flatMap(value => String(value || '').split(','))
     .map(value => value.trim().replace(/^ROLE_/i, '').toUpperCase())
     .filter(Boolean);
+
+  if (userRoles.includes('YOUTH_ISLAND')) {
+    return (
+      <YouthIslandProfile
+        user={user}
+        onLogout={onLogout}
+        onUserUpdated={onUserUpdated}
+        onYouthIsland={onYouthIsland}
+      />
+    );
+  }
 
   if (userRoles.includes('CLEANING_CLIENT')) {
     return <CleaningClientProfile user={user} onLogout={onLogout} onUserUpdated={onUserUpdated} />;

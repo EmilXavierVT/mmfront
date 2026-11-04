@@ -134,6 +134,16 @@ function getBookingDate(booking) {
   return String(getBookingStartDateTime(booking) || booking?.eventDate || '').slice(0, 10);
 }
 
+function getLatestEdit(booking) {
+  const editHistory = Array.isArray(booking?.editHistory) ? booking.editHistory : [];
+  return editHistory.at(-1) || null;
+}
+
+function formatEditor(edit) {
+  if (!edit) return 'Ikke redigeret endnu';
+  return edit.editedByName || edit.editedByEmail || 'Ukendt bruger';
+}
+
 function bookingToForm(booking) {
   const startDateTime = getBookingStartDateTime(booking);
 
@@ -247,6 +257,11 @@ export function YouthIsland({ user }) {
   const bookingDocumentText = useMemo(
     () => buildBookingDocument(form, user),
     [form, user],
+  );
+
+  const editingBooking = useMemo(
+    () => bookings.find(booking => booking.id === editingId) || null,
+    [bookings, editingId],
   );
 
   const earlierBookings = useMemo(
@@ -560,6 +575,14 @@ export function YouthIsland({ user }) {
             <div>
               <span>{editingId ? `Redigerer #${editingId}` : 'Ny bestilling'}</span>
               <h2 id="new-youth-booking">{editingId ? 'Opdater arrangement' : 'Arrangement'}</h2>
+              {editingBooking && (
+                <p className="youth-edit-attribution">
+                  Oprettet af {editingBooking.orderedByName || editingBooking.orderedByEmail}
+                  {getLatestEdit(editingBooking) && (
+                    <> · Senest redigeret af {formatEditor(getLatestEdit(editingBooking))} {formatDateTime(getLatestEdit(editingBooking).editedAt)}</>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 
@@ -905,6 +928,9 @@ export function YouthIsland({ user }) {
                     {formatDuration(getBookingStartDateTime(booking), getBookingEndDateTime(booking))}
                     {booking.location ? ` · ${booking.location}` : ''}
                   </span>
+                  {getLatestEdit(booking) && (
+                    <span>Senest redigeret af {formatEditor(getLatestEdit(booking))}</span>
+                  )}
                 </div>
                 <button className="btn btn-cream" type="button" onClick={() => startEdit(booking)}>
                   <Icon name="edit" size={16} />
@@ -961,6 +987,7 @@ export function YouthIsland({ user }) {
                     <div><dt>Allergener</dt><dd>{booking.allergies || 'Ingen angivet'}</dd></div>
                     <div><dt>Snackfade</dt><dd>{booking.snackTrayCount || 0}</dd></div>
                     <div><dt>Senest opdateret</dt><dd>{formatDateTime(booking.updatedAt)}</dd></div>
+                    <div><dt>Senest redigeret af</dt><dd>{formatEditor(getLatestEdit(booking))}</dd></div>
                     <div className="youth-history-wide"><dt>Andet</dt><dd>{booking.notes || 'Intet angivet'}</dd></div>
                   </dl>
                   <div className="youth-history-services">
@@ -975,6 +1002,19 @@ export function YouthIsland({ user }) {
                       </div>
                     ))}
                   </div>
+                  {(booking.editHistory || []).length > 0 && (
+                    <div className="youth-edit-history">
+                      <h4>Redigeringshistorik</h4>
+                      <ol>
+                        {booking.editHistory.map(edit => (
+                          <li key={edit.id}>
+                            <strong>{formatEditor(edit)}</strong>
+                            <span>{formatDateTime(edit.editedAt)}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                   <div className="youth-history-actions">
                     <button className="btn btn-cream" type="button" onClick={() => startEdit(booking)}>
                       <Icon name="edit" size={17} />
@@ -1021,6 +1061,7 @@ export function YouthIsland({ user }) {
                   <dl>
                     <div><dt>Spectra</dt><dd>{booking.spectraReservationNumber}</dd></div>
                     <div><dt>Lokale</dt><dd>{booking.location || 'Ikke angivet'}</dd></div>
+                    <div><dt>Senest redigeret af</dt><dd>{formatEditor(getLatestEdit(booking))}</dd></div>
                   </dl>
                   <div className="youth-schedule-services">
                     {(booking.items || []).map((item, index) => (

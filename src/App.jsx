@@ -126,19 +126,25 @@ function AdminPage({
   );
 }
 
-function ProfilePage({ user, onBook, onLogout, onUserUpdated }) {
+function ProfilePage({ user, onBook, onLogout, onUserUpdated, onYouthIsland }) {
   if (!user) {
     return <Navigate to="/" replace />;
   }
 
   const userHomePage = getUserHomePage(user);
-  if (userHomePage !== 'profile') {
+  if (userHomePage !== 'profile' && !hasUserRole(user, 'YOUTH_ISLAND')) {
     return <Navigate to={PAGE_PATHS[userHomePage] || PAGE_PATHS.profile} replace />;
   }
 
   return (
     <Page>
-      <Profile user={user} onBook={onBook} onLogout={onLogout} onUserUpdated={onUserUpdated} />
+      <Profile
+        user={user}
+        onBook={onBook}
+        onLogout={onLogout}
+        onUserUpdated={onUserUpdated}
+        onYouthIsland={onYouthIsland}
+      />
     </Page>
   );
 }
@@ -315,7 +321,7 @@ export default function App() {
   const isAdmin = hasUserRole(user, 'ADMIN');
   const canUseCleaningManager = isAdmin || hasUserRole(user, 'CLEANING_MANAGER');
   const canUseYouthIsland = isAdmin || hasUserRole(user, 'YOUTH_ISLAND');
-  const accountPage = getUserHomePage(user);
+  const accountPage = hasUserRole(user, 'YOUTH_ISLAND') ? 'profile' : getUserHomePage(user);
   const isYouthIslandRoute = active === 'youthIsland';
 
   const loadProducts = useCallback(async () => {
@@ -474,7 +480,15 @@ export default function App() {
         />
         <Route
           path="/profile"
-          element={<ProfilePage user={user} onBook={scrollToBook} onLogout={handleLogout} onUserUpdated={handleUserUpdated} />}
+          element={(
+            <ProfilePage
+              user={user}
+              onBook={scrollToBook}
+              onLogout={handleLogout}
+              onUserUpdated={handleUserUpdated}
+              onYouthIsland={() => navigateTo('youthIsland')}
+            />
+          )}
         />
         <Route
           path="/employee"

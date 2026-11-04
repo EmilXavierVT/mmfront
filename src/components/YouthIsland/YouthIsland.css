@@ -701,6 +701,49 @@
   font-size: 11px;
 }
 
+.youth-edit-attribution {
+  margin: 10px 0 0;
+  color: rgba(34, 29, 31, 0.64);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.youth-edit-history {
+  grid-column: 1 / -1;
+  background: rgba(73, 125, 166, 0.08);
+  border: 1px solid var(--soft-border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.youth-edit-history h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.youth-edit-history ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.youth-edit-history li {
+  padding-left: 4px;
+}
+
+.youth-edit-history li strong,
+.youth-edit-history li span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.youth-edit-history li span {
+  color: rgba(34, 29, 31, 0.62);
+}
+
 .youth-history-actions {
   display: flex;
   grid-column: 1 / -1;
