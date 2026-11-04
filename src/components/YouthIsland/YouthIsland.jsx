@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { productApi } from '../../api/products.js';
 import { getProductYear, normalizeProduct } from '../../lib/products.js';
+import { findSpecialServingProduct, getServingDateTime, isSpecialServing as isSpecialItem } from '../../lib/youthIsland.js';
 import { youthIslandBookingApi } from '../../api/youthIslandBookings.js';
 import { Icon } from '../Shared/Icon.jsx';
 import './YouthIsland.css';
 
-const DIVERSE_PRODUCT_NUMBER = 'DIVERSE';
-
 const emptyItem = (overrides = {}) => ({
   guestCount: '',
-  servingTime: '',
+  servingDateTime: '',
   productNumber: '',
   productName: '',
   unitPriceOverride: '',
@@ -17,8 +16,6 @@ const emptyItem = (overrides = {}) => ({
   room: '',
   ...overrides,
 });
-
-const isSpecialItem = item => String(item?.productNumber || '').trim().toUpperCase() === DIVERSE_PRODUCT_NUMBER;
 
 function formatPrice(value) {
   const price = Number(value);
@@ -59,14 +56,6 @@ function formatDate(value) {
   const date = new Date(normalizedValue);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('da-DK', { dateStyle: 'medium' }).format(date);
-}
-
-function formatTime(value) {
-  return value ? String(value).slice(0, 5) : 'Ingen tid';
-}
-
-function normalizeTime(value) {
-  return value?.length === 5 ? `${value}:00` : value;
 }
 
 function normalizeDateTime(value) {
@@ -112,22 +101,22 @@ function getBookingStartDateTime(booking) {
   if (booking?.startDateTime) return booking.startDateTime;
   if (!booking?.eventDate) return '';
 
-  const firstServingTime = (booking.items || [])
-    .map(item => String(item.servingTime || '').slice(0, 5))
-    .find(Boolean);
-  return `${booking.eventDate}T${firstServingTime || '09:00'}:00`;
+  const firstServing = (booking.items || [])
+    .map(item => getServingDateTime(item, booking))
+    .filter(Boolean)
+    .sort()[0];
+  return firstServing || `${booking.eventDate}T09:00:00`;
 }
 
 function getBookingEndDateTime(booking) {
   if (booking?.endDateTime) return booking.endDateTime;
   if (!booking?.eventDate) return '';
 
-  const servingTimes = (booking.items || [])
-    .map(item => String(item.servingTime || '').slice(0, 5))
+  const servingDateTimes = (booking.items || [])
+    .map(item => getServingDateTime(item, booking))
     .filter(Boolean)
     .sort();
-  const lastServingTime = servingTimes.at(-1);
-  return lastServingTime ? `${booking.eventDate}T${lastServingTime}:00` : '';
+  return servingDateTimes.at(-1) || '';
 }
 
 function getBookingDate(booking) {
@@ -162,7 +151,7 @@ function bookingToForm(booking) {
       ? booking.items.map(item => ({
         id: item.id,
         guestCount: String(item.guestCount || ''),
-        servingTime: String(item.servingTime || '').slice(0, 5),
+        servingDateTime: toDateTimeInput(getServingDateTime(item, booking)),
         productNumber: item.productNumber || '',
         productName: item.productName || '',
         unitPriceOverride: item.unitPriceOverride == null ? '' : String(item.unitPriceOverride),
@@ -196,7 +185,7 @@ function buildBookingDocument(form, user) {
       '',
       `${index + 1}. ${item.productName || item.menu || 'Servering'}`,
       `   Antal: ${item.guestCount || 0}`,
-      `   Tid: ${formatTime(item.servingTime)}`,
+      `   Dato og tid: ${formatDateTime(item.servingDateTime)}`,
       `   Lokale: ${item.room || 'Ikke angivet'}`,
       `   Menu: ${item.menu || 'Ikke angivet'}`,
       ...(isSpecialItem(item) ? [`   Pris pr. person: ${formatPrice(item.unitPriceOverride)}`] : []),
@@ -248,9 +237,7 @@ export function YouthIsland({ user }) {
   );
 
   const diverseProduct = useMemo(
-    () => products
-      .map(normalizeProduct)
-      .find(product => String(product.economicProductNumber || '').trim().toUpperCase() === DIVERSE_PRODUCT_NUMBER),
+    () => findSpecialServingProduct(products),
     [products],
   );
 
@@ -369,6 +356,7 @@ export function YouthIsland({ user }) {
       ...current,
       startDateTime: value,
       eventDate: value ? value.slice(0, 10) : '',
+      items: current.items.map(item => item.servingDateTime ? item : { ...item, servingDateTime: value }),
     }));
   };
 
@@ -400,18 +388,18 @@ export function YouthIsland({ user }) {
   };
 
   const addItem = () => {
-    setForm(current => ({ ...current, items: [...current.items, emptyItem()] }));
+    setForm(current => ({ ...current, items: [...current.items, emptyItem({ servingDateTime: current.startDateTime })] }));
   };
 
   const addSpecialItem = () => {
     if (!diverseProduct) {
-      setError('Produktet DIVERSE kunne ikke findes i e-conomic. Opdater produktlisten og prøv igen.');
+      setError('Produktet DIVERSE SALG (1019) kunne ikke findes i e-conomic. Opdater produktlisten og prøv igen.');
       return;
     }
     setError('');
     setForm(current => ({
       ...current,
-      items: [...current.items, emptyItem({ productNumber: diverseProduct.economicProductNumber })],
+      items: [...current.items, emptyItem({ productNumber: diverseProduct.economicProductNumber, servingDateTime: current.startDateTime })],
     }));
   };
 
@@ -472,7 +460,8 @@ export function YouthIsland({ user }) {
     const invalidItem = form.items.some(item => (
       !Number.isInteger(Number(item.guestCount))
       || Number(item.guestCount) < 1
-      || !item.servingTime
+      || !item.servingDateTime
+      || Number.isNaN(new Date(item.servingDateTime).getTime())
       || !item.productNumber
       || !item.productName
       || (isSpecialItem(item) && (
@@ -495,7 +484,7 @@ export function YouthIsland({ user }) {
     }
 
     if (invalidItem) {
-      setError('Hver servering skal have antal, tidspunkt og et produkt eller specialnavn med pris.');
+      setError('Hver servering skal have antal, dato og tid samt et produkt eller specialnavn med pris.');
       return;
     }
 
@@ -514,7 +503,8 @@ export function YouthIsland({ user }) {
         snackTrayCount: Number(form.snackTrayCount) || 0,
         items: form.items.map(item => ({
           guestCount: Number(item.guestCount),
-          servingTime: normalizeTime(item.servingTime),
+          servingDateTime: normalizeDateTime(item.servingDateTime),
+          servingTime: normalizeDateTime(item.servingDateTime).slice(11),
           productNumber: item.productNumber,
           productName: item.productName,
           unitPriceOverride: isSpecialItem(item) ? Number(item.unitPriceOverride) : null,
@@ -707,13 +697,13 @@ export function YouthIsland({ user }) {
                       required
                     />
                   </div>
-                  <div className="field">
-                    <label htmlFor={`youth-time-${index}`}>Tid</label>
+                  <div className="field youth-service-datetime">
+                    <label htmlFor={`youth-time-${index}`}>Dato og tid</label>
                     <input
                       id={`youth-time-${index}`}
-                      type="time"
-                      value={item.servingTime}
-                      onChange={event => updateItem(index, 'servingTime', event.target.value)}
+                      type="datetime-local"
+                      value={item.servingDateTime}
+                      onChange={event => updateItem(index, 'servingDateTime', event.target.value)}
                       required
                     />
                   </div>
@@ -876,7 +866,7 @@ export function YouthIsland({ user }) {
                 {form.items.map((item, index) => (
                   <div key={`preview-${index}`}>
                     <strong>{item.productName || item.menu || `Servering ${index + 1}`}</strong>
-                    <span>{item.guestCount || 0} personer · {formatTime(item.servingTime)} · {item.room || 'Lokale ikke angivet'}</span>
+                    <span>{item.guestCount || 0} personer · {formatDateTime(item.servingDateTime)} · {item.room || 'Lokale ikke angivet'}</span>
                     {isSpecialItem(item) && item.unitPriceOverride !== '' && <p>{formatPrice(item.unitPriceOverride)} pr. person</p>}
                     {!isSpecialItem(item) && item.menu && <p>{item.menu}</p>}
                   </div>
@@ -994,7 +984,7 @@ export function YouthIsland({ user }) {
                     {(booking.items || []).map((item, index) => (
                       <div key={item.id || `${booking.id}-${index}`}>
                         <strong>{item.guestCount} personer</strong>
-                        <span>{formatTime(item.servingTime)} · {item.room}</span>
+                        <span>{formatDateTime(getServingDateTime(item, booking))} · {item.room}</span>
                         <p>
                           {item.productName && <b>{item.productName}</b>}
                           {item.menu}
@@ -1066,7 +1056,7 @@ export function YouthIsland({ user }) {
                   <div className="youth-schedule-services">
                     {(booking.items || []).map((item, index) => (
                       <span key={item.id || `${booking.id}-schedule-${index}`}>
-                        {formatTime(item.servingTime)} · {item.room} · {item.productName || item.menu}
+                        {formatDateTime(getServingDateTime(item, booking))} · {item.room} · {item.productName || item.menu}
                       </span>
                     ))}
                   </div>

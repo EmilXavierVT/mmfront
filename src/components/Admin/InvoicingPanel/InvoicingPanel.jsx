@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { cleaningInvoiceApi, youthIslandInvoiceApi } from '../../../api/cleaningInvoices.js';
 import { Icon } from '../../Shared/Icon.jsx';
+import { getServingDateTime } from '../../../lib/youthIsland.js';
 
 function getPreviousMonth() {
   const date = new Date();
@@ -28,8 +29,10 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('da-DK', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value));
 }
 
-function formatTime(value) {
-  return String(value || '').slice(0, 5);
+function formatServingDateTime(line) {
+  const value = getServingDateTime(line, { eventDate: line.eventDate });
+  if (!value) return '';
+  return new Intl.DateTimeFormat('da-DK', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
 }
 
 function isCleaningProduct(product) {
@@ -500,7 +503,7 @@ export function InvoicingPanel({
                   <table className="admin-table">
                     <thead>
                       <tr>
-                        <th>Time</th>
+                        <th>Date and time</th>
                         <th>Product</th>
                         <th>Room</th>
                         <th>Guests</th>
@@ -511,9 +514,9 @@ export function InvoicingPanel({
                     </thead>
                     <tbody>
                       {invoice.lines.map(line => (
-                        <tr key={`${line.bookingId}-${line.productNumber}-${line.servingTime}-${line.room}`}>
+                        <tr key={`${line.bookingId}-${line.productNumber}-${line.servingDateTime || line.servingTime}-${line.room}`}>
                           <td>
-                            <strong>{formatTime(line.servingTime)}</strong>
+                            <strong>{formatServingDateTime(line)}</strong>
                             <small>{invoice.spectraReservationNumber}</small>
                           </td>
                           <td>
