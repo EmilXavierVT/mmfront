@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { cleaningInvoiceApi, youthIslandInvoiceApi } from '../../../api/cleaningInvoices.js';
 import { Icon } from '../../Shared/Icon.jsx';
+import { getCleaningInvoiceBatchNotice } from '../../../lib/cleaningInvoiceResult.js';
 import { getServingDateTime } from '../../../lib/youthIsland.js';
 
 function getPreviousMonth() {
@@ -80,7 +81,7 @@ export function InvoicingPanel({
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [batchNotice, setBatchNotice] = useState(null);
 
   const [youthStartDate, setYouthStartDate] = useState(getToday);
   const [youthCustomerNumber, setYouthCustomerNumber] = useState('');
@@ -126,7 +127,7 @@ export function InvoicingPanel({
 
     setLoading(true);
     setError('');
-    setSuccess('');
+    setBatchNotice(null);
 
     try {
       const nextPreview = await cleaningInvoiceApi.preview({
@@ -142,11 +143,11 @@ export function InvoicingPanel({
   }
 
   async function handleCreate() {
-    if (!selectedProductNumber || !preview || creating) return;
+    if (!selectedProductNumber || !billableLines.length || loading || creating) return;
 
     setCreating(true);
     setError('');
-    setSuccess('');
+    setBatchNotice(null);
 
     try {
       const result = await cleaningInvoiceApi.create({
@@ -156,7 +157,7 @@ export function InvoicingPanel({
         force,
       });
       setPreview(result);
-      setSuccess(bookAndSend ? 'Cleaning invoices were created, booked, and sent.' : 'Cleaning draft invoices were created.');
+      setBatchNotice(getCleaningInvoiceBatchNotice(result.batch, bookAndSend));
     } catch (err) {
       setError(err.message || 'Could not create cleaning invoices.');
     } finally {
@@ -255,7 +256,14 @@ export function InvoicingPanel({
 
           {productsError && <div className="form-error">{productsError}</div>}
           {error && <div className="form-error">{error}</div>}
-          {success && <div className="form-success">{success}</div>}
+          {preview && batchNotice && (
+            <div
+              role={batchNotice.type === 'error' ? 'alert' : 'status'}
+              className={batchNotice.type === 'info' ? undefined : `form-${batchNotice.type}`}
+            >
+              {batchNotice.message}
+            </div>
+          )}
 
           <form className="admin-product-form" onSubmit={handlePreview}>
             <div className="field-row">
@@ -264,6 +272,7 @@ export function InvoicingPanel({
                 <input
                   type="month"
                   value={invoiceMonth}
+                  disabled={loading || creating}
                   onChange={event => {
                     setInvoiceMonth(event.target.value);
                     setPreview(null);
@@ -278,7 +287,7 @@ export function InvoicingPanel({
                     setProductNumber(event.target.value);
                     setPreview(null);
                   }}
-                  disabled={productsLoading || !cleaningProducts.length}
+                  disabled={loading || creating || productsLoading || !cleaningProducts.length}
                 >
                   {!cleaningProducts.length && <option value="">No Rengøring product found</option>}
                   {cleaningProducts.map(product => (
@@ -308,7 +317,7 @@ export function InvoicingPanel({
             </label>
 
             <div className="admin-product-form-actions">
-              <button className="btn btn-blue" type="submit" disabled={loading || productsLoading}>
+              <button className="btn btn-blue" type="submit" disabled={loading || creating || productsLoading}>
                 {loading ? 'Previewing...' : 'Preview invoices'}
                 <Icon name="arrow" size={18} />
               </button>
@@ -316,7 +325,7 @@ export function InvoicingPanel({
                 className="btn btn-cream"
                 type="button"
                 onClick={handleCreate}
-                disabled={creating || !preview || !billableLines.length}
+                disabled={loading || creating || !billableLines.length}
               >
                 {creating ? 'Creating...' : (bookAndSend ? 'Create and send' : 'Create drafts')}
                 <Icon name="check" size={18} />
