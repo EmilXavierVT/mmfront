@@ -1,3 +1,4 @@
+import { CalendarSubscriptions } from '../../Shared/CalendarSubscriptions.jsx';
 import { Icon } from '../../Shared/Icon.jsx';
 import { formatCalendarDay, formatCalendarMonth, formatDate, getProductDescription, getProductName, getRequester, getStatus } from '../adminUtils.js';
 
@@ -94,6 +95,12 @@ export function CalendarPanel({
               Refresh <Icon name="arrow" size={18} />
             </button>
           </div>
+
+          <CalendarSubscriptions feeds={[
+            ['catering', 'Catering requests'],
+            ['cleaning', 'Cleaning schedule'],
+            ['admin', 'Admin calendar'],
+          ]} />
 
           {requestsLoading && (
             <div className="profile-empty">Loading calendar...</div>

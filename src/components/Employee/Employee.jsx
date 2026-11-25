@@ -5,6 +5,7 @@ import { workLogApi } from '../../api/worklogs.js';
 import { ChangePasswordPanel } from '../Auth/ChangePasswordPanel.jsx';
 import { AccountDetailsPanel } from '../Profile/AccountDetailsPanel.jsx';
 import { CleaningSchedulePanel } from './CleaningSchedulePanel.jsx';
+import { CalendarSubscriptions } from '../Shared/CalendarSubscriptions.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 
 const ACTIVE_WORKLOG_STORAGE_KEY = 'mm_active_worklog_id';
@@ -190,10 +191,10 @@ function getAppointmentCustomerName(appointment) {
 }
 
 export function Employee({ user, onLogout, onUserUpdated }) {
-  const isCleaningStaff = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
+  const roles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
     .flatMap(value => String(value || '').split(','))
-    .map(value => value.trim().replace(/^ROLE_/i, '').toUpperCase())
-    .includes('CLEANING_STAFF');
+    .map(value => value.trim().replace(/^ROLE_/i, '').toUpperCase());
+  const isCleaningStaff = roles.includes('CLEANING_STAFF');
   const [activeTab, setActiveTab] = useState('shift');
   const [workLogs, setWorkLogs] = useState([]);
   const [workLogsLoading, setWorkLogsLoading] = useState(false);
@@ -717,6 +718,10 @@ export function Employee({ user, onLogout, onUserUpdated }) {
               Refresh <Icon name="arrow" size={18} />
             </button>
           </div>
+
+          {roles.includes('EMPLOYEE') && (
+            <CalendarSubscriptions title="Shift calendar link" feeds={[["shifts", "My shifts"]]} />
+          )}
 
           {!userId && (
             <div className="profile-empty">We could not find your user id in the login session.</div>

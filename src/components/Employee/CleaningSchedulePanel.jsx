@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cleaningAppointmentApi } from '../../api/cleaningAppointments.js';
 import { economicCustomerApi } from '../../api/economicCustomers.js';
 import { userApi } from '../../api/users.js';
+import { CalendarSubscriptions } from '../Shared/CalendarSubscriptions.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 import {
   formatCalendarDay,
@@ -719,6 +720,11 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
           Refresh <Icon name="arrow" size={18} />
         </button>
       </div>
+
+      <CalendarSubscriptions
+        title="Cleaning calendar link"
+        feeds={managerMode ? [['cleaning', 'Cleaning schedule']] : [['my-cleaning', 'My cleaning schedule']]}
+      />
 
       {!cleaningStaffId && (
         <div className="profile-empty">We could not find your user id in the login session.</div>

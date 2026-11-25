@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const TOKEN_STORAGE_KEY = 'mm_api_token';
 const USER_STORAGE_KEY = 'mm_api_user';
