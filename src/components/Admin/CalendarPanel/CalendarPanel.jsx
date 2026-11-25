@@ -1,5 +1,6 @@
 import { CalendarSubscriptions } from '../../Shared/CalendarSubscriptions.jsx';
 import { Icon } from '../../Shared/Icon.jsx';
+import { buildYouthCalendarSchedule } from '../../../lib/youthIslandOrder.js';
 import { formatCalendarDay, formatCalendarMonth, formatDate, getProductDescription, getProductName, getRequester, getStatus } from '../adminUtils.js';
 
 function getEventTitle(event) {
@@ -287,17 +288,7 @@ export function CalendarPanel({
                         <div className="request-products-state">No service lines attached to this booking.</div>
                       )}
                       {selectedYouthIslandBooking.items?.length > 0 && (
-                        <ul className="admin-product-list">
-                          {selectedYouthIslandBooking.items.map((item, index) => (
-                            <li key={item.id || `${selectedYouthIslandBooking.id}-${index}`}>
-                              <div>
-                                <strong>{item.productName || item.menu || 'Servering'}</strong>
-                                <small>{[item.servingTime, item.room, item.menu].filter(Boolean).join(' · ')}</small>
-                              </div>
-                              <span>{item.guestCount || 0}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        <p className="admin-calendar-servings">{buildYouthCalendarSchedule(selectedYouthIslandBooking)}</p>
                       )}
                     </div>
 

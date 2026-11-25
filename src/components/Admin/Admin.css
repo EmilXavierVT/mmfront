@@ -740,6 +740,12 @@
   top: 82px;
 }
 
+.admin-calendar-servings {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
 .admin-customer-layout {
   display: grid;
   grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);

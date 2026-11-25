@@ -14,6 +14,34 @@ function dateRange(form) {
   return `${formatDate(start, start.slice(0, 4) !== end.slice(0, 4))}-${formatDate(end, true)}`;
 }
 
+export function buildYouthCalendarSchedule(booking) {
+  const customerName = booking.customerName?.trim() || 'Ungdomsøen booking';
+  const servings = (booking.items || [])
+    .map(item => ({ ...item, dateTime: getServingDateTime(item, booking) }))
+    .filter(item => item.dateTime)
+    .sort((a, b) => a.dateTime.localeCompare(b.dateTime));
+  const lines = [];
+  let previousDay = '';
+
+  for (const serving of servings) {
+    const day = serving.dateTime.slice(0, 10);
+    if (day !== previousDay) {
+      if (previousDay) lines.push('', formatDate(day));
+      else lines.push(`${customerName}, ${formatDate(day)}`);
+      previousDay = day;
+    }
+    const name = serving.productName?.trim() || 'Servering';
+    lines.push(`${serving.dateTime.slice(11, 16)} ${name}`);
+    const menu = serving.menu?.trim();
+    if (menu && menu !== name) lines.push(`  ${menu}`);
+    lines.push(`  ${Number(serving.guestCount) || 0} personer`);
+    const room = serving.room?.trim();
+    if (room && room !== booking.location?.trim()) lines.push(`  ${room}`);
+  }
+
+  return lines.join('\n');
+}
+
 export function buildYouthOrderSheet(form, user) {
   const items = form.items || [];
   const counts = [...new Set(items.map(item => Number(item.guestCount)).filter(count => count > 0))].sort((a, b) => a - b);
