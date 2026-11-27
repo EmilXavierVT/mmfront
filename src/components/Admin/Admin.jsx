@@ -7,6 +7,7 @@ import { AdminSession } from './AdminSession/AdminSession.jsx';
 import { AdminTabs } from './AdminTabs/AdminTabs.jsx';
 import { CalendarPanel } from './CalendarPanel/CalendarPanel.jsx';
 import { CustomersPanel } from './CustomersPanel/CustomersPanel.jsx';
+import { CleaningCustomersPanel } from '../Cleaning/CleaningCustomersPanel.jsx';
 import { EmailPanel } from './EmailPanel/EmailPanel.jsx';
 import { HistoryPanel } from './HistoryPanel/HistoryPanel.jsx';
 import { InvoicingPanel } from './InvoicingPanel/InvoicingPanel.jsx';
@@ -890,6 +891,8 @@ export function Admin({
           onMakeYouthIsland={makeUserYouthIsland}
         />
       )}
+
+      {adminTab === 'cleaning-customers' && <CleaningCustomersPanel canEdit />}
 
       {adminTab === 'customers' && (
         <CustomersPanel

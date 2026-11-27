@@ -5,6 +5,7 @@ import { workLogApi } from '../../api/worklogs.js';
 import { ChangePasswordPanel } from '../Auth/ChangePasswordPanel.jsx';
 import { AccountDetailsPanel } from '../Profile/AccountDetailsPanel.jsx';
 import { CleaningSchedulePanel } from './CleaningSchedulePanel.jsx';
+import { CleaningCustomersPanel } from '../Cleaning/CleaningCustomersPanel.jsx';
 import { CalendarSubscriptions } from '../Shared/CalendarSubscriptions.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 
@@ -196,6 +197,7 @@ export function Employee({ user, onLogout, onUserUpdated }) {
     .map(value => value.trim().replace(/^ROLE_/i, '').toUpperCase());
   const isCleaningStaff = roles.includes('CLEANING_STAFF');
   const [activeTab, setActiveTab] = useState('shift');
+  const [cleaningListSelection, setCleaningListSelection] = useState(null);
   const [workLogs, setWorkLogs] = useState([]);
   const [workLogsLoading, setWorkLogsLoading] = useState(false);
   const [workLogsError, setWorkLogsError] = useState('');
@@ -221,6 +223,7 @@ export function Employee({ user, onLogout, onUserUpdated }) {
   const employeeTabs = useMemo(() => ([
     ['shift', 'Current shift'],
     ...(isCleaningStaff ? [['cleaning', 'Cleaning schedule']] : []),
+    ...(isCleaningStaff ? [['cleaning-customers', 'Cleaning customers']] : []),
     ['history', 'Worklog history'],
     ['account', 'Account'],
   ]), [isCleaningStaff]);
@@ -637,6 +640,11 @@ export function Employee({ user, onLogout, onUserUpdated }) {
 
       const nextAppointments = await refreshCleaningAppointments();
       const createdId = Number(createdAppointment?.id);
+      if (Number.isFinite(createdId)) {
+        const customerKey = `economic:${assignmentCustomerNumber}`;
+        setCleaningListSelection({ customerKey, visitId: createdId });
+        setActiveTab('cleaning-customers');
+      }
       if (
         Number.isFinite(createdId)
         && nextAppointments.some((appointment) => (
@@ -1048,6 +1056,8 @@ export function Employee({ user, onLogout, onUserUpdated }) {
       {activeTab === 'cleaning' && isCleaningStaff && (
         <CleaningSchedulePanel user={user} />
       )}
+
+      {activeTab === 'cleaning-customers' && isCleaningStaff && <CleaningCustomersPanel staffUser={user} initialSelection={cleaningListSelection} />}
 
       {workLogsError && <div className="form-error employee-feedback">{workLogsError}</div>}
       {workLogsSuccess && <div className="form-success employee-feedback">{workLogsSuccess}</div>}

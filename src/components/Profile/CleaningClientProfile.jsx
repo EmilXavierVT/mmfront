@@ -6,6 +6,7 @@ import { formatCalendarDay, formatCalendarMonth, formatDate, getDateKey, getMont
 import { ChangePasswordPanel } from '../Auth/ChangePasswordPanel.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 import { AccountDetailsPanel } from './AccountDetailsPanel.jsx';
+import { CleaningCustomersPanel } from '../Cleaning/CleaningCustomersPanel.jsx';
 
 const DURATION_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
 const FLEX_DURATION_OPTIONS = DURATION_OPTIONS.filter((minutes) => minutes >= 120);
@@ -229,10 +230,12 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
     ? [
       ['calendar', 'Calendar'],
       ['vacation', 'Vacation'],
+      ['cleaning-list', 'Cleaning list'],
       ['profile', 'Profile'],
     ]
     : [
       ['calendar', 'Calendar'],
+      ['cleaning-list', 'Cleaning list'],
       ['profile', 'Profile'],
     ];
 
@@ -1112,6 +1115,8 @@ export function CleaningClientProfile({ user, onLogout, onUserUpdated }) {
           )}
         </section>
       )}
+
+      {activeTab === 'cleaning-list' && <CleaningCustomersPanel personal />}
 
       {activeTab === 'profile' && (
         <section className="profile-requests employee-worklogs">

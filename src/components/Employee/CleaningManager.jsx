@@ -11,6 +11,7 @@ import { AccountDetailsPanel } from '../Profile/AccountDetailsPanel.jsx';
 import { ChangePasswordPanel } from '../Auth/ChangePasswordPanel.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 import { CleaningSchedulePanel } from './CleaningSchedulePanel.jsx';
+import { CleaningCustomersPanel } from '../Cleaning/CleaningCustomersPanel.jsx';
 
 const DURATION_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
 const REPEAT_INTERVAL_OPTIONS = [1, 2, 3, 4];
@@ -263,6 +264,7 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
   const [savingAction, setSavingAction] = useState('');
   const managerTabs = useMemo(() => ([
     ['schedule', 'Schedule'],
+    ['customers', 'Cleaning customers'],
     ['assignments', 'Add assignment'],
     ['tasks', 'Edit tasks'],
     ['account', 'Account'],
@@ -572,6 +574,8 @@ export function CleaningManager({ user, onLogout, onUserUpdated }) {
       {activeTab === 'schedule' && (
         <CleaningSchedulePanel user={user} managerMode />
       )}
+
+      {activeTab === 'customers' && <CleaningCustomersPanel canEdit />}
 
       {activeTab === 'assignments' && (
         <section className="profile-requests employee-worklogs">

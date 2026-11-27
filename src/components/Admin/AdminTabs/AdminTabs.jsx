@@ -5,6 +5,7 @@ const adminTabs = [
   ['invoicing', 'Invoicing'],
   ['users', 'Users'],
   ['customers', 'Customers'],
+  ['cleaning-customers', 'Cleaning customers'],
   ['email', 'Email'],
   ['history', 'History'],
 ];

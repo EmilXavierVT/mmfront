@@ -1,0 +1,52 @@
+.cleaning-customers-panel { min-width: 0; }
+.cleaning-customers-panel .profile-section-head p { color: #66616a; margin: .6rem 0 0; }
+.cleaning-customers-layout { display: grid; grid-template-columns: minmax(220px, 290px) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.cleaning-customers-personal { grid-template-columns: minmax(0, 1fr); }
+.cleaning-customer-sidebar { min-width: 0; display: grid; gap: 1rem; position: sticky; top: 1rem; }
+.cleaning-customer-queue { display: grid; gap: .65rem; max-height: 70vh; overflow-y: auto; }
+.cleaning-customer-queue .admin-request-row { width: 100%; text-align: left; }
+.cleaning-list-count { background: #e9f5fe; color: #175580; border-radius: 999px; padding: .65rem 1rem; font-size: .85rem; white-space: nowrap; }
+.cleaning-list-detail { min-width: 0; }
+.cleaning-list-heading { display: flex; align-items: start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.cleaning-list-heading h2 { margin: .35rem 0; overflow-wrap: anywhere; }
+.cleaning-list-heading p { color: #66616a; margin: .5rem 0 0; }
+.cleaning-list-heading .btn { flex-shrink: 0; }
+.cleaning-list-import { display: flex; flex-wrap: wrap; gap: .85rem; align-items: end; padding: 1.1rem; margin-bottom: 1.5rem; background: #f4f7f9; border-radius: 14px; }
+.cleaning-list-import .field { flex: 1 1 220px; }
+.cleaning-list-import p { flex-basis: 100%; margin: 0; color: #66616a; font-size: .88rem; }
+.cleaning-list-editor fieldset { display: grid; gap: 1.25rem; min-width: 0; border: 0; padding: 0; margin: 0; }
+.cleaning-list-editor input, .cleaning-list-editor textarea, .cleaning-list-import select, .cleaning-customer-sidebar input { width: 100%; box-sizing: border-box; }
+.cleaning-list-editor textarea { resize: vertical; line-height: 1.6; }
+.cleaning-list-room { border: 1px solid #e5e2df; border-radius: 14px; padding: 1.25rem; min-width: 0; }
+.cleaning-list-room h3 { margin: 0 0 1rem; }
+.cleaning-list-room ul { display: grid; gap: .75rem; margin: 0; padding-left: 1.3rem; line-height: 1.6; }
+.cleaning-list-room li { padding-left: .3rem; overflow-wrap: anywhere; }
+.cleaning-list-room li::marker { color: #0496ff; }
+.cleaning-list-room-editor .field { flex: 1; min-width: 0; }
+.cleaning-list-content { display: grid; gap: 1rem; }
+.cleaning-list-content > h3 { margin: .3rem 0; }
+.cleaning-list-care, .cleaning-list-note { background: #fff4d9; color: #654711; padding: .85rem 1rem; border-radius: 9px; }
+.cleaning-list-care p { margin: .5rem 0 0; white-space: pre-wrap; line-height: 1.6; }
+.cleaning-list-actions { display: flex; flex-wrap: wrap; gap: .75rem; padding-top: .5rem; }
+.cleaning-visit-panel { display: grid; gap: 1.3rem; }
+.cleaning-visit-progress, .cleaning-visit-instructions, .cleaning-today-assignment { padding: 1rem; border-radius: 12px; background: #e9f5fe; }
+.cleaning-visit-progress progress { display: block; width: 100%; height: 12px; margin: .8rem 0; accent-color: #287443; }
+.cleaning-visit-progress p, .cleaning-visit-instructions p, .cleaning-today-assignment p { margin: .5rem 0; }
+.cleaning-visit-tasks { display: grid; gap: .3rem; }
+.cleaning-visit-task { display: flex; gap: .8rem; align-items: start; padding: .65rem .4rem; cursor: pointer; min-height: 44px; }
+.cleaning-visit-task input { flex: 0 0 21px; width: 21px; height: 21px; margin: 2px 0 0; accent-color: #287443; cursor: inherit; }
+.cleaning-visit-task .cleaning-visit-task-text { display: block; color: inherit; font-size: 1rem; line-height: 1.6; letter-spacing: normal; text-transform: none; margin: 0; overflow-wrap: anywhere; }
+.cleaning-visit-task.completed .cleaning-visit-task-text { text-decoration: line-through; color: #477553; }
+.cleaning-today-fields { display: flex; align-items: end; flex-wrap: wrap; gap: .8rem; margin-top: 1rem; }
+.cleaning-today-fields .field { flex: 1 1 130px; }
+@media (max-width: 850px) {
+  .cleaning-customers-layout { grid-template-columns: minmax(0, 1fr); }
+  .cleaning-customer-sidebar { position: static; }
+  .cleaning-customer-queue { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); max-height: 270px; }
+}
+@media (max-width: 560px) {
+  .cleaning-list-heading { flex-direction: column; }
+  .cleaning-list-room { padding: 1rem; }
+  .cleaning-list-count { white-space: normal; }
+  .cleaning-list-actions .btn { width: 100%; }
+}

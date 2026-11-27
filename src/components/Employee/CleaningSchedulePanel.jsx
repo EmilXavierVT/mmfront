@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cleaningAppointmentApi } from '../../api/cleaningAppointments.js';
 import { economicCustomerApi } from '../../api/economicCustomers.js';
 import { userApi } from '../../api/users.js';
+import { CleaningAssignmentChecklist } from '../Cleaning/CleaningAssignmentChecklist.jsx';
 import { CalendarSubscriptions } from '../Shared/CalendarSubscriptions.jsx';
 import { Icon } from '../Shared/Icon.jsx';
 import {
@@ -1008,6 +1009,7 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
                       <Icon name={detailSectionsOpen.tasks ? 'chevUp' : 'chev'} size={18} />
                     </button>
                     <div className="employee-cleaning-disclosure-body">
+                      <CleaningAssignmentChecklist key={selectedAppointment.id} appointment={selectedAppointment} />
                       {selectedAppointment.tasks?.length ? (
                         selectedAppointment.tasks.map((task, index) => (
                           <label className="employee-cleaning-checkbox employee-cleaning-task" key={task.id || `${task.title}-${index}`}>
@@ -1022,7 +1024,7 @@ export function CleaningSchedulePanel({ user, managerMode = false }) {
                         ))
                       ) : (
                         <div className="profile-empty employee-cleaning-empty">
-                          No tasks have been added for this assignment yet.
+                          No additional assignment tasks have been added.
                         </div>
                       )}
                     </div>

@@ -177,7 +177,7 @@
   overflow-x: hidden;
 }
 
-.cleaning-manager-page .employee-tabs {
+.employee-page .employee-tabs {
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
@@ -185,7 +185,7 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.cleaning-manager-page .employee-tab {
+.employee-page .employee-tab {
   flex: 0 0 auto;
   min-height: 44px;
   white-space: nowrap;
@@ -975,7 +975,7 @@
     width: 100%;
     justify-content: center;
   }
-  .cleaning-manager-page .employee-tabs {
+  .employee-page .employee-tabs {
     width: 100%;
     flex-direction: row;
     align-items: center;
@@ -983,7 +983,7 @@
     margin-top: 20px;
     padding-bottom: 0;
   }
-  .cleaning-manager-page .employee-tab {
+  .employee-page .employee-tab {
     padding: 12px 14px;
     font-size: 12px;
   }
